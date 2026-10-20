@@ -109,6 +109,9 @@
       this.t += dt; const g = this.app.game, P = g.player, C = this.cfg();
       this.still = (!P.moving && !P.hold) ? this.still + dt : 0;
       if (this.t - this.lastAny >= C.interFallback && this.still >= 2) this.tryInter('I6_idle');   // I6: nothing natural happened for a while
+      // I7: the session's first interstitial comes at interFirstDelay without waiting for a natural break (checked 1x/s;
+      // interBlocked still holds it while carrying / in a popup / during the rush)
+      if (C.interFirstForce && this.interCount === 0 && this.t >= C.interFirstDelay && this.t - (this._firstTry || -9) >= 1) { this._firstTry = this.t; this.tryInter('I7_first'); }
     },
     init(app) {
       this.app = app;

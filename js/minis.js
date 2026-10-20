@@ -33,7 +33,7 @@
       });
       g.on('unlock', u => { this.bought = true; if (u && u.id !== 'grand_open') CST.Ads.tryInter('I1_unlock'); });
       g.on('upgrade', () => { this.bought = true; });
-      g.on('vipPaid', v => { if (!CST.Ads.canReward('R4', 150)) return; const extra = Math.round(v.bonus * (CST.CONFIG.ADS.vipTipMult - 1));
+      g.on('vipPaid', v => { if (!CST.Ads.canReward('R4', CST.CONFIG.ADS.vipTipCooldown || 150)) return; const extra = Math.round(v.bonus * (CST.CONFIG.ADS.vipTipMult - 1));
         this.chip('r4', `VIP tip x${CST.CONFIG.ADS.vipTipMult}|watch ad: +${fmt(extra)} coins`, 'armchair', 5, () => CST.Ads.reward('R4_vip_tip', () => g.gain(extra, v.x, v.y - 40))); });
       g.on('rushEnd', ok => { if (!ok && CST.Ads.enabled) this.popRush(); });
     },

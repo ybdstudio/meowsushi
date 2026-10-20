@@ -77,10 +77,10 @@
     // ---------------- ads (see 'Meow Sushi – Kịch bản Ads', option B: inter cooldown 75 s) ----------------
     ADS: {
       units: { rewarded: 'REWARDED_AD_UNIT_ID', inter: 'INTERSTITIAL_AD_UNIT_ID' },   // TikTok Minis ad unit ids (Developer Portal)
-      interFirstDelay: 60, interFirstTask: 3, interCooldown: 60, interAfterReward: 40, interCapSession: 30, interFallback: 120, interDelay: 0.6, resumeAfter: 120,
-      rewardSlotCooldown: 120, rewardCapDay: 40, r1Cooldown: 120,
-      rushEvery: 300, rushMinWaiting: 4, rushTime: 60, rushStaff: 1.25, rushPrice: 1.2,   // R3 Meow Rush
-      padShortMax: 0.4, vipTipMult: 3, coinsMinutes: 0.75, coinsAfter: 30, coinsCooldown: 240, rushExtra: 45, rushAfter: 30
+      interFirstDelay: 30, interFirstTask: 1, interFirstForce: true, interCooldown: 45, interAfterReward: 30, interCapSession: 30, interFallback: 90, interDelay: 0.6, resumeAfter: 60,
+      rewardSlotCooldown: 90, rewardCapDay: 40, r1Cooldown: 75, vipTipCooldown: 90,
+      rushEvery: 180, rushMinWaiting: 3, rushTime: 60, rushStaff: 1.25, rushPrice: 1.2,   // R3 Meow Rush
+      padShortMax: 0.4, vipTipMult: 3, coinsMinutes: 0.75, coinsAfter: 15, coinsCooldown: 180, rushExtra: 45, rushAfter: 20
     },
     // ---------------- TikTok Minis entry rewards (scaled to recent income so they never break the economy) ----------------
     MINIS: { addMinutes: 2, addStars: 1, revisitMinutes: 1.5, shareMinutes: 1 },
