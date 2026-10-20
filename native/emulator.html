@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><base href="../meow-sushi/"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<link rel="icon" href="data:,"><title>Meow Sushi – native runtime emulator</title>
+<style>html,body{margin:0;height:100%;background:#111;overflow:hidden;touch-action:none}#cv{position:fixed;inset:0;width:100vw;height:100vh;display:block}</style></head>
+<body><canvas id="cv"></canvas>
+<script>
+/* Minimal tt.* emulator so the native build (game.js) can be played/tested in a desktop browser. Not shipped. */
+(function () {
+  const cv = document.getElementById('cv'); let first = true; const L = {};
+  const on = k => f => { (L[k] = L[k] || []).push(f); };
+  const map = e => ({ changedTouches: [{ identifier: e.pointerId, clientX: e.clientX, clientY: e.clientY }] });
+  cv.addEventListener('pointerdown', e => (L.ts || []).forEach(f => f(map(e))));
+  window.addEventListener('pointermove', e => (L.tm || []).forEach(f => f(map(e))));
+  window.addEventListener('pointerup', e => (L.te || []).forEach(f => f(map(e))));
+  window.__ALLOW_MOCK_ADS = new URLSearchParams(location.search).get('noads') !== '1';   // test-ad overlay when no fake SDK
+  const P = 'emu_';
+  window.tt = {
+    getSystemInfoSync: () => ({ windowWidth: innerWidth, windowHeight: innerHeight, pixelRatio: Math.min(3, devicePixelRatio), safeArea: { top: 44, bottom: innerHeight - 30 }, statusBarHeight: 44 }),
+    getMenuButtonBoundingClientRect: () => ({ top: 50, bottom: 82, left: innerWidth - 97, right: innerWidth - 10 }),
+    createCanvas: () => { if (first) { first = false; return cv; } return document.createElement('canvas'); },
+    createImage: () => new Image(),
+    getStorageSync: k => { const v = localStorage.getItem(P + k); return v === null ? '' : v; }, setStorageSync: (k, v) => localStorage.setItem(P + k, v), removeStorageSync: k => localStorage.removeItem(P + k),
+    onTouchStart: on('ts'), onTouchMove: on('tm'), onTouchEnd: on('te'), onTouchCancel: on('tc'), onShow: on('show'), onHide: on('hide'),
+    loadSubpackage: o => { const t = { onProgressUpdate(f) { f({ progress: 50 }); setTimeout(() => f({ progress: 100 }), 100); } }; setTimeout(() => o.success && o.success(), 150); return t; },
+    vibrateShort() { }, vibrateLong() { }, login: o => o.success && o.success({ code: 'emu' }),
+    shareAppMessage: o => { window.__shared = o; setTimeout(() => o.success && o.success({}), 100); }
+  };
+  if (new URLSearchParams(location.search).get('fakeads') === '1') {
+    const mk = () => { const h = {}; return { onClose: f => h.c = f, offClose() { }, onError: f => h.e = f, offError() { }, load: () => Promise.resolve(), show: () => { window.__adShown = (window.__adShown || 0) + 1; setTimeout(() => h.c && h.c({ isEnded: true }), 50); return Promise.resolve(); } }; };
+    tt.createRewardedVideoAd = mk; tt.createInterstitialAd = mk;
+  }
+})();
+</script>
+<script src="game.js"></script>
+</body></html>

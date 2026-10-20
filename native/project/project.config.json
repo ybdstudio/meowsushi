@@ -1,0 +1,11 @@
+{
+  "appid": "YOUR_TIKTOK_APP_ID",
+  "projectname": "meow-sushi-conveyor",
+  "compileType": "game",
+  "description": "Meow Sushi Conveyor \u2013 cozy cat sushi tycoon",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": true
+  }
+}
