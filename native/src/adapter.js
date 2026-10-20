@@ -11,9 +11,17 @@
   const W = sys.windowWidth || sys.screenWidth, H = sys.windowHeight || sys.screenHeight;
   G.devicePixelRatio = sys.pixelRatio || 2; G.innerWidth = W; G.innerHeight = H;
   // safe area: below the status bar and the platform's top-right capsule
-  let top = (sys.safeArea && sys.safeArea.top) || sys.statusBarHeight || 0;
-  try { const mb = T.getMenuButtonBoundingClientRect && T.getMenuButtonBoundingClientRect(); if (mb && mb.bottom) top = Math.max(top, mb.bottom + 6); } catch (e) { }
-  const bottom = sys.safeArea ? Math.max(0, H - sys.safeArea.bottom) : 0;
+  // Some clients report these in physical pixels or relative to the screen rather than the window, which pushed the HUD
+  // a third of the way down on TikTok iOS. Convert implausible values and clamp the result.
+  const pr = sys.pixelRatio || 2;
+  const norm = (v, lim) => { v = +v || 0; if (v > lim && v / pr <= lim) v /= pr; return v > lim ? 0 : v; };
+  let top = norm(sys.safeArea && sys.safeArea.top, H * 0.12) || norm(sys.statusBarHeight, H * 0.12) || 0;
+  let mb = null;
+  try { mb = T.getMenuButtonBoundingClientRect && T.getMenuButtonBoundingClientRect(); const b = mb && norm(mb.bottom, H * 0.16); top = b ? Math.max(top, b + 6) : Math.max(top, (top || 20) + 44); } catch (e) { top = Math.max(top, (top || 20) + 44); }   // no usable capsule rect: leave room for it
+  top = Math.min(top, Math.round(H * 0.15));
+  let bottom = 0;
+  if (sys.safeArea && sys.safeArea.bottom) { let sb = +sys.safeArea.bottom; if (sb > H * 1.05) sb /= pr; bottom = Math.min(Math.max(0, H - sb), Math.round(H * 0.06)); }
+  try { console.log('[safe]', JSON.stringify({ W, H, pr, safeArea: sys.safeArea, statusBar: sys.statusBarHeight, menu: mb, top, bottom })); } catch (e) { }
   G.__SAFE = { top, bottom, W, H };
 
   // the first canvas created is the on-screen one

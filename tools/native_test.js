@@ -69,6 +69,20 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
   await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(300);
   const noad = await pg.evaluate(() => ({ enabled: CST.Ads.enabled, overlay: !!APP.ui.ad, coins: __game.S.coins, chips: CST.Minis.chipList.length })); await shot('08_no_ad_sdk');
   rec('No ad SDK: ads disabled, no fake ad, no free reward', !noad.enabled && !noad.overlay, JSON.stringify(noad));
+  // TikTok iOS quirks seen on device: AudioParams without automation methods, capsule rect in physical px
+  const e0 = errs.length;
+  await boot('?ttquirks=1');
+  const q = await pg.evaluate(async () => {
+    CST.Audio.unlock(); const names = ['coin', 'pick', 'drop', 'pop', 'ding', 'cash', 'unlock', 'task', 'star', 'angry', 'boost'];
+    await new Promise(r => requestAnimationFrame(() => { for (const n of names) { CST.Audio.last = {}; CST.Audio.play(n); } r(); }));   // inside a frame, like on device
+    const t0 = __game.S.time; const d = APP.renderer.draw; let thrown = 0; APP.renderer.draw = function () { if (!thrown++) throw new Error('injected frame error'); return d.apply(this, arguments); };
+    await new Promise(r => setTimeout(r, 1200)); return { advanced: __game.S.time - t0, top: __SAFE.top, H: __SAFE.H };
+  });
+  await shot('09_tt_quirks');
+  const qerr = errs.slice(e0).filter(e => !/injected frame error/.test(e)); errs.length = e0;
+  rec('TikTok quirks: sound never throws', qerr.length === 0, qerr.join(' | ') || 'ok');
+  rec('TikTok quirks: game loop survives a frame error', q.advanced > 0.8, `game time +${q.advanced.toFixed(2)}s`);
+  rec('TikTok quirks: HUD top inset stays near the capsule', q.top > 40 && q.top <= q.H * 0.15, `top=${q.top}px of ${q.H}`);
   rec('No runtime errors overall', errs.length === 0, errs.length ? [...new Set(errs)].join(' | ') : 'clean');
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(res, null, 1));
   console.log(`\n${res.filter(r => r.ok).length}/${res.length} passed`);

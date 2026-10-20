@@ -36,3 +36,12 @@ cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, tt
   without a real ad); ad offers are switched off instead. The emulator keeps the overlay for testing.
 - Source recovered: the build is reproducible from this folder (verified byte-identical to the shipped game.js
   before the change above).
+
+## Fixes from the first TikTok device test (iOS)
+- Game froze after the first sound: TikTok's WebAudio gain has no `setValueAtTime`, the TypeError was thrown inside the
+  requestAnimationFrame callback and the loop stopped rescheduling. `js/audio.js` now falls back to `.value` and never
+  throws; `main_native.js` schedules the next frame first and catches frame errors (logged as `[frame]`, max 5).
+- HUD pushed a third of the way down: safe-area / capsule values were used unchecked (device reported ~252 px).
+  `adapter.js` now converts physical-px values, clamps the top inset to 15 % of the screen and logs `[safe] {...}` at boot.
+  If the HUD still sits wrong on a device, copy that `[safe]` line from vConsole.
+- Emulator `?ttquirks=1` reproduces both quirks; `tools/native_test.js` covers them (19 checks).

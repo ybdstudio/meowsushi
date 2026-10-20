@@ -51,7 +51,7 @@
       // touch: UI first, otherwise a floating joystick
       const joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0, v: { x: 0, y: 0 }, R: 50 }; let uiId = null;
       const pt = t => ({ x: t.clientX !== undefined ? t.clientX : t.pageX, y: t.clientY !== undefined ? t.clientY : t.pageY });
-      T.onTouchStart(e => { CST.Audio.unlock(); for (const t of e.changedTouches) { const p = pt(t);
+      T.onTouchStart(e => { try { CST.Audio.unlock(); } catch (er) { } for (const t of e.changedTouches) { const p = pt(t);
         if (uiId === null && this.ui.touchStart(p.x, p.y)) { uiId = t.identifier; continue; }
         if (joy.id === null && !this.ui.pop && !this.ui.panel) { joy.id = t.identifier; joy.ox = p.x; joy.oy = p.y; joy.dx = joy.dy = 0; joy.v = { x: 0, y: 0 }; this.ui.joy = joy; } } });
       T.onTouchMove(e => { for (const t of e.changedTouches) { const p = pt(t);
@@ -60,7 +60,12 @@
       const end = e => { for (const t of e.changedTouches) { if (t.identifier === uiId) { uiId = null; this.ui.touchEnd(); } if (t.identifier === joy.id) { joy.id = null; joy.v = { x: 0, y: 0 }; this.ui.joy = null; } } };
       T.onTouchEnd(end); T.onTouchCancel && T.onTouchCancel(end);
       let last = Date.now(), acc = 0; const STEP = 1 / 60;
+      let errN = 0;
       const loop = () => {
+        requestAnimationFrame(loop);   // schedule first: an exception in this frame must not stop the game
+        try { frame(); } catch (e) { if (errN++ < 5) console.error('[frame]', e && e.message, e && e.stack); }
+      };
+      const frame = () => {
         const now = Date.now(); let dt = Math.min(0.25, (now - last) / 1000); last = now; acc += dt * this.speed; let n = 0;
         while (acc >= STEP && n < 40) {
           if (this.paused) { acc = 0; break; }
@@ -69,7 +74,6 @@
         }
         if (n >= 40) acc = 0;
         r.follow(dt); r.draw(dt); this.ui.update(dt); CST.Ads.update(this.paused ? 0 : dt);
-        requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
       root.__game = game;

@@ -12,10 +12,12 @@
   window.addEventListener('pointermove', e => (L.tm || []).forEach(f => f(map(e))));
   window.addEventListener('pointerup', e => (L.te || []).forEach(f => f(map(e))));
   window.__ALLOW_MOCK_ADS = new URLSearchParams(location.search).get('noads') !== '1';   // test-ad overlay when no fake SDK
+  const Q = new URLSearchParams(location.search).get('ttquirks') === '1';   // mimic TikTok iOS quirks seen on device
+  if (Q) { const cg = AudioContext.prototype.createGain; AudioContext.prototype.createGain = function () { const g = cg.call(this); Object.defineProperty(g, 'gain', { value: { value: 1 } }); return g; }; }
   const P = 'emu_';
   window.tt = {
     getSystemInfoSync: () => ({ windowWidth: innerWidth, windowHeight: innerHeight, pixelRatio: Math.min(3, devicePixelRatio), safeArea: { top: 44, bottom: innerHeight - 30 }, statusBarHeight: 44 }),
-    getMenuButtonBoundingClientRect: () => ({ top: 50, bottom: 82, left: innerWidth - 97, right: innerWidth - 10 }),
+    getMenuButtonBoundingClientRect: () => { const k = Q ? Math.min(3, devicePixelRatio) : 1; return { top: 50 * k, bottom: 82 * k, left: (innerWidth - 97) * k, right: (innerWidth - 10) * k }; },
     createCanvas: () => { if (first) { first = false; return cv; } return document.createElement('canvas'); },
     createImage: () => new Image(),
     getStorageSync: k => { const v = localStorage.getItem(P + k); return v === null ? '' : v; }, setStorageSync: (k, v) => localStorage.setItem(P + k, v), removeStorageSync: k => localStorage.removeItem(P + k),
