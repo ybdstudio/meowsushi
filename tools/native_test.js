@@ -35,6 +35,18 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
     await shot('02_panel_' + name); rec(`Nav opens ${name}`, open === name, `panel=${open}`);
     await pg.evaluate(() => APP.ui.close()); await pg.waitForTimeout(100);   // let a frame redraw the hit areas
   }
+  // settings toggles: off -> on again (was stuck on Off: grey buttons were not tappable)
+  await pg.evaluate(() => APP.ui.open('settings')); await pg.waitForTimeout(150);
+  const tg = [];
+  for (let k = 0; k < 2; k++) for (const which of [0, 1]) {
+    const h = await pg.evaluate(w => { const b = APP.ui.sheetBox; const hs = APP.ui.hits.filter(h => b && h.y >= b.y && h.w < 200 && h.h < 70).sort((a, c) => a.y - c.y); return hs[w]; }, which);
+    if (h) { await pg.mouse.click(h.x + h.w / 2, h.y + h.h / 2); await pg.waitForTimeout(150); }
+    tg.push(await pg.evaluate(() => [__game.S.settings.sound, __game.S.settings.vib, CST.Audio.on]));
+  }
+  await shot('02b_settings'); await pg.evaluate(() => APP.ui.close()); await pg.waitForTimeout(100);
+  rec('Sound / Vibration toggle off and back on', JSON.stringify(tg) === JSON.stringify([[false, true, false], [false, false, false], [true, false, true], [true, true, true]]), JSON.stringify(tg));
+  const ui = await pg.evaluate(() => { const h = APP.ui.hits; const nav = h.filter(x => x.y > 700); return { navTop: Math.min(...nav.map(x => x.y)), H: APP.ui.H }; });
+  rec('Bottom UI (task card + nav) is compact', ui.H - ui.navTop < 150, `task card top at ${ui.navTop.toFixed(0)} of ${ui.H}px (uses ${(ui.H - ui.navTop).toFixed(0)}px)`);
   // share popup -> share button -> reward
   const c0 = await pg.evaluate(() => { CST.Minis.popShare(); return __game.S.coins; }); await pg.waitForTimeout(300); await shot('03_share');
   await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(600);

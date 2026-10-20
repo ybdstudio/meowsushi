@@ -23,7 +23,7 @@
     const g = this.g, S = g.S, A = CST.Ads, C = CST.CONFIG.ADS;
     if (g.phase > this.phase) { this.phase = g.phase; A.tryInter('I3_phase'); }
     const waiting = g.customers.filter(c => ['QUEUE', 'WAIT_FOR_SUSHI', 'WAIT_ORDER', 'EXTRA_WAIT'].includes(c.state)).length;
-    if (A.enabled && S.adRushT <= 0 && waiting >= C.rushMinWaiting && A.canReward('R3', C.rushEvery) && A.t > 60) {
+    if (A.enabled && S.adRushT <= 0 && waiting >= C.rushMinWaiting && A.canReward('R3', C.rushEvery) && A.t > (C.rushAfter || 60)) {
       if (!this.chips.r3) this.chip('r3', `Meow Rush|${C.rushTime}s: staff faster, +${Math.round((C.rushPrice - 1) * 100)}% prices`, 'staff_hero', 0, () => A.reward('R3_rush', () => { S.adRushT = C.rushTime; this.app.ui.toast(`Meow Rush! Staff +${Math.round((C.rushStaff - 1) * 100)}% faster, prices +${Math.round((C.rushPrice - 1) * 100)}% for ${C.rushTime}s`, 'staff_hero', true); }));
     } else if (this.chips.r3 && (waiting < C.rushMinWaiting || S.adRushT > 0)) this.unchip('r3');
     const P = g.player; let pad = null;

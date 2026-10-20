@@ -79,7 +79,7 @@
     star(cx, cy, r) { const c = this.ctx; c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } c.closePath(); c.fillStyle = '#ffc93c'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = BROWN; c.lineJoin = 'round'; c.stroke(); }
     hit(x, y, w, h, fn) { this.hits.push({ x, y, w, h, fn }); }
     button(x, y, w, h, label, style, fn, size = 18) {
-      const c = this.ctx, st = { green: ['#8ee36a', '#3fae3c', '#2a6e27', '#fff'], yellow: ['#ffe46a', '#ffbb1c', '#b4740c', DARK], pink: ['#ff9ab0', '#ff5f7e', '#d23f62', '#fff'], off: ['#e2d6c6', '#d2c3b0', '#a99a86', '#fff8ee'], blue: ['#7cc4ff', '#3d8fe0', '#2a5f9a', '#fff'] }[style] || ['#8ee36a', '#3fae3c', '#2a6e27', '#fff'];
+      const c = this.ctx, st = { green: ['#8ee36a', '#3fae3c', '#2a6e27', '#fff'], yellow: ['#ffe46a', '#ffbb1c', '#b4740c', DARK], pink: ['#ff9ab0', '#ff5f7e', '#d23f62', '#fff'], off: ['#e2d6c6', '#d2c3b0', '#a99a86', '#fff8ee'], toggleOff: ['#e2d6c6', '#d2c3b0', '#a99a86', '#fff8ee'], blue: ['#7cc4ff', '#3d8fe0', '#2a5f9a', '#fff'] }[style] || ['#8ee36a', '#3fae3c', '#2a6e27', '#fff'];
       c.fillStyle = st[2]; this.rr(x, y + 4, w, h, Math.min(16, h / 2.4)); c.fill();
       c.fillStyle = this.grad(y, y + h, st[0], st[1]); this.rr(x, y, w, h, Math.min(16, h / 2.4)); c.fill(); c.lineWidth = 2.5; c.strokeStyle = DARK; c.stroke();
       this.text(label, x + w / 2, y + h / 2 + 1, this.fit(label, size, w - 12), st[3], 'bold', 'center', st[3] === '#fff' ? ['rgba(74,38,20,.55)', 3] : null);
@@ -119,7 +119,7 @@
       const navY = this.navBar();
       const ty = this.taskCard(navY);
       const b = g.bonusTask(); let by = ty - 10;
-      if (b) { const s = `Bonus: ${b.t} (${fmt(b.cur)}/${fmt(b.n)})`; c.font = F('bold', 11); const w = Math.min(W - 20, c.measureText(s).width + 20); by = ty - 30; c.fillStyle = 'rgba(74,38,20,.66)'; this.rr(10, by, w, 22, 9); c.fill(); this.text(s, 20, by + 11, this.fit(s, 11, w - 20), '#fff'); }
+      if (b) { const s = `Bonus: ${b.t} (${fmt(b.cur)}/${fmt(b.n)})`; c.font = F('bold', 10); const w = Math.min(W - 20, c.measureText(s).width + 18); by = ty - 23; c.fillStyle = 'rgba(74,38,20,.62)'; this.rr(10, by, w, 18, 8); c.fill(); this.text(s, 19, by + 9, this.fit(s, 10, w - 18), '#fff'); }
       if (!this.hintGone) this.text('Drag anywhere to move', W / 2, by - 16, 14, '#fff', 'bold', 'center', [DARK, 4]);
       this.drawToasts(ty - 70);
       this.drawJoy();
@@ -130,21 +130,21 @@
     }
     pin(cx, cy) { const c = this.ctx; c.beginPath(); c.arc(cx, cy - 4, 9, Math.PI * 0.85, Math.PI * 2.15); c.lineTo(cx, cy + 12); c.closePath(); c.fillStyle = '#e8463e'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = BROWN; c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(cx, cy - 4, 3.5, 0, 7); c.fill(); }
     navBar() {
-      const W = this.W, n = 5, gap = 7, bw = (W - 20 - gap * (n - 1)) / n, bh = bw, y = this.H - this.S.bottom - 10 - bh, g = this.g, S = g.S;
+      const W = this.W, n = 5, gap = 7, bw = (W - 20 - gap * (n - 1)) / n, bh = Math.round(Math.min(bw * 0.72, 56)), y = this.H - this.S.bottom - 8 - bh, g = this.g, S = g.S;   // compact: leaves more map
       const items = [['shop', 'Shop', ['#ffb15a', '#f08a2c']], ['upgrade', 'Upgrade', ['#7fd36a', '#4aaa45']], ['tasks', 'Task', ['#ef7a63', '#d24c3e']], ['map', 'Map', ['#6fb2f2', '#3f86d8']], ['settings', 'Settings', ['#8a5a3c', '#6b3f27']]];
       const canUp = Object.keys(CST.CONFIG.UPGRADES).some(k => { const i = g.upgradeInfo(k); return !i.locked && i.cost !== null && S.coins >= i.cost; });
       const canShop = CST.CONFIG.UNLOCKS.some(u => g.padVisible(u) && S.coins >= u.cost - (S.padPaid[u.id] || 0));
       items.forEach(([id, label, col], i) => {
-        const x = 10 + i * (bw + gap); this.card(x, y, bw, bh, 15, this.grad(y, y + bh, col[0], col[1]), DARK, 4);
-        this.icon('nav_' + id, x + bw / 2, y + bh * 0.42, bw * 0.5);
-        this.text(label, x + bw / 2, y + bh * 0.82, this.fit(label, 12.5, bw - 6), '#fff', 'bold', 'center', [DARK, 3]);
+        const x = 10 + i * (bw + gap); this.card(x, y, bw, bh, 13, this.grad(y, y + bh, col[0], col[1]), DARK, 3);
+        this.icon('nav_' + id, x + bw / 2, y + bh * 0.39, bh * 0.52);
+        this.text(label, x + bw / 2, y + bh * 0.82, this.fit(label, 11.5, bw - 6), '#fff', 'bold', 'center', [DARK, 3]);
         if ((id === 'shop' && canShop) || (id === 'upgrade' && canUp)) { const c = this.ctx; c.fillStyle = '#e8463e'; c.beginPath(); c.arc(x + bw - 3, y + 3, 8, 0, 7); c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke(); }
         this.hit(x, y, bw, bh + 4, () => { CST.Audio.play('pop'); this.panel === id ? this.close() : this.open(id); });
       });
       return y;
     }
     taskCard(navY) {
-      const g = this.g, S = g.S, W = this.W, w = Math.min(W - 20, 380), h = 68, x = 10, y = navY - 12 - h, t = g.task();
+      const g = this.g, S = g.S, W = this.W, w = Math.min(W - 20, 380), h = 50, x = 10, y = navY - 8 - h, t = g.task();
       let txt = 'All tasks complete — keep growing your restaurant!', bar = 1, cnt = '', rew = '';
       if (t) {
         const p = g.taskProgress(); txt = t.t; bar = p.cur / p.n; cnt = `${fmt(p.cur)}/${fmt(p.n)}`;
@@ -154,14 +154,15 @@
       }
       const sc = this.flashT > 0 ? 1 + Math.sin(this.flashT * 9) * 0.03 : 1, c = this.ctx;
       c.save(); c.translate(x + w / 2, y + h / 2); c.scale(sc, sc); c.translate(-(x + w / 2), -(y + h / 2));
-      this.card(x, y, w, h, 16, CREAM, BROWN, 4);
-      this.card(x + 10, y + 12, 44, 44, 11, '#d8443f', BROWN); this.icon('task_ico', x + 32, y + 34, 30);
-      c.font = F('bold', 11); const rw = rew ? c.measureText(rew).width + 6 : 0;
-      const lines = this.wrap(txt, 15, w - 74 - rw); this.text(lines[0], x + 64, y + (lines.length > 1 ? 18 : 24), this.fit(lines[0], 15, w - 74 - rw), DARK);
-      if (lines[1]) this.text(lines.slice(1).join(' '), x + 64, y + 35, this.fit(lines.slice(1).join(' '), 15, w - 74), DARK);
-      if (rew) this.text(rew, x + w - 10, y + 15, 11, '#b8650f', 'bold', 'right');
-      const bw = Math.min(110, w * 0.32), byy = y + h - 16; this.card(x + 64, byy - 6, bw, 11, 6, '#ead6bd', BROWN); if (bar > 0) { c.fillStyle = '#4fbf5a'; this.rr(x + 65.5, byy - 4.5, (bw - 3) * Math.min(1, bar), 8, 4); c.fill(); }
-      this.text(cnt, x + 72 + bw, byy, this.fit(cnt, 12, w - bw - 84), BROWN);
+      this.card(x, y, w, h, 13, CREAM, BROWN, 3);
+      this.card(x + 8, y + 8, 34, 34, 9, '#d8443f', BROWN); this.icon('task_ico', x + 25, y + 25, 23);
+      const tx = x + 50; c.font = F('bold', 10); const rw = rew ? c.measureText(rew).width + 8 : 0;
+      let title = txt, size = this.fit(title, 14, w - 58 - rw);
+      if (size < 10.5) { size = 10.5; c.font = F('bold', size); while (title.length > 4 && c.measureText(title + '…').width > w - 58 - rw) title = title.slice(0, -1); title += '…'; }
+      this.text(title, tx, y + 16, size, DARK);
+      if (rew) this.text(rew, x + w - 8, y + 12, 10, '#b8650f', 'bold', 'right');
+      const bw = Math.min(100, w * 0.3), byy = y + h - 14; this.card(tx, byy - 5, bw, 10, 5, '#ead6bd', BROWN); if (bar > 0) { c.fillStyle = '#4fbf5a'; this.rr(tx + 1.5, byy - 3.5, (bw - 3) * Math.min(1, bar), 7, 3.5); c.fill(); }
+      this.text(cnt, tx + bw + 8, byy, this.fit(cnt, 11, w - bw - 66), BROWN);
       c.restore();
       this.hit(x, y, w, h, () => this.open('tasks'));
       return y;
@@ -237,8 +238,8 @@
         });
       } else if (this.panel === 'settings') {
         this.title = 'Settings'; const st = S.settings, play = Math.floor(g.stat('playTime'));
-        R.push({ title: 'Sound', btn: [st.sound ? 'On' : 'Off', st.sound ? 'green' : 'off', () => { st.sound = !st.sound; CST.Audio.on = st.sound; g.save(); }, true] });
-        R.push({ title: 'Vibration', btn: [st.vib ? 'On' : 'Off', st.vib ? 'green' : 'off', () => { st.vib = !st.vib; g.save(); }, true] });
+        R.push({ title: 'Sound', btn: [st.sound ? 'On' : 'Off', st.sound ? 'green' : 'toggleOff', () => { st.sound = !st.sound; CST.Audio.on = st.sound; CST.Audio.fails = 0; if (st.sound) { CST.Audio.unlock(); } g.save(); }, true] });
+        R.push({ title: 'Vibration', btn: [st.vib ? 'On' : 'Off', st.vib ? 'green' : 'toggleOff', () => { st.vib = !st.vib; g.save(); }, true] });
         R.push({ title: 'Progress', sub: `Played ${Math.floor(play / 60)}m ${play % 60}s · ${g.stat('paid')} customers · auto-saved`, btn: ['Save', 'green', () => { g.save(); this.toast('Saved!', 'c_fx_heart'); }] });
         R.push({ title: 'Reset restaurant', sub: 'Deletes your save on this device', btn: ['Reset', 'pink', () => this.confirmReset()] });
         R.push({ sec: `Meow Sushi Conveyor · v${CST.CONFIG.VERSION}.0` });

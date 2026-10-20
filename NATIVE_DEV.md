@@ -59,3 +59,12 @@ cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, tt
 - Check: `node tools/build_native.js && node tools/hs/hs-check.mjs dist/meow-sushi` (0 fail; the "capitals" warnings are
   expected because the dashboard labels have capitals; "calls TikTok directly" = share / missions).
 - Emulator: `?fakeads=1&hsfake=1` = fake TikTok ads + fake HS backend serving the dashboard JSON.
+
+## Round 3 (device feedback)
+- Bottom UI compact: nav buttons 72 % height (max 56 px), task card 50 px single line, smaller bonus pill (~60 px more map).
+- Settings: Sound / Vibration could not be switched back on (grey 'off' buttons had no tap area) -> style 'toggleOff'.
+- Loading art: native/project/ui/loading.webp is a 2x EDSR super-resolution of the 720 px original (+ light sharpen),
+  drawn with imageSmoothingQuality 'high'. A higher-resolution original would still be better.
+- Ad timing (js/config.js ADS, real seconds of unpaused play): first interstitial after 60 s and task 3 (was 120 s /
+  task 5), interstitial cooldown 60 s (was 75), 40 s after a rewarded ad (was 45), idle fallback 120 s (was 150),
+  resume-after 120 s (was 180); Free Coins from 30 s (was 60), every 240 s (was 300); Meow Rush offer from 30 s (was 60).

@@ -12,6 +12,7 @@
   const drawLoading = () => {
     const W = SAFE.W, H = SAFE.H; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#f6d9a8'; ctx.fillRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     if (loadingImg) { const s = Math.max(W / loadingImg.width, H / loadingImg.height); ctx.drawImage(loadingImg, (W - loadingImg.width * s) / 2, 0, loadingImg.width * s, loadingImg.height * s); }
     shown += (progress - shown) * 0.15 + 0.003; shown = Math.min(shown, progress);
     const bw = W * 0.8, bx = (W - bw) / 2, by = H - SAFE.bottom - H * 0.09, bh = 26;
