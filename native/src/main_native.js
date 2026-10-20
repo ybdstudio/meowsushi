@@ -44,9 +44,10 @@
       CST.Ads.init(this); CST.Minis.init(this); this.ui.started = true;
       // no ad SDK on this client: hide ad offers instead of falling back to the test-ad overlay (which would grant
       // rewards without a real ad). The desktop emulator sets __ALLOW_MOCK_ADS to keep the overlay for testing.
-      if (!CST.Ads.sdk() && !root.__ALLOW_MOCK_ADS) CST.Ads.enabled = false;
+      if (!(CST.HS && CST.HS.sdk) && !CST.Ads.sdk() && !root.__ALLOW_MOCK_ADS) CST.Ads.enabled = false;   // with HS, each place is gated by HSGame.canShowAd
       T.onHide && T.onHide(() => game.save());
-      try { T.login && T.login({ success() { }, fail() { } }); } catch (e) { }   // silent login (platform requirement); no server-side account needed
+      if (CST.HS && CST.HS.sdk) CST.HS.flush();                // HSGame logs in (started at boot); rewards that arrived early
+      else try { T.login && T.login({ success() { }, fail() { } }); } catch (e) { }   // silent login (platform requirement)
       this.ui.toast(game.loaded ? 'Welcome back!' : 'Welcome! Grab salmon from the crate', game.loaded ? 'c_fx_heart' : 'c_box_salmon', true);
       // touch: UI first, otherwise a floating joystick
       const joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0, v: { x: 0, y: 0 }, R: 50 }; let uiId = null;

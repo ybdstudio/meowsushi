@@ -4,7 +4,7 @@
 const { chromium } = require(process.env.PW || 'playwright');
 const fs = require('fs'), path = require('path'), http = require('http');
 const argv = process.argv.slice(2), OUT = argv[0] && !argv[0].startsWith('--') ? argv[0] : path.join(__dirname, '../tests/out_native');
-const SECS = argv.includes('--secs') ? +argv[argv.indexOf('--secs') + 1] : 160; fs.mkdirSync(OUT, { recursive: true });
+const SECS0 = 0; const SECS = argv.includes('--secs') ? +argv[argv.indexOf('--secs') + 1] : 160; fs.mkdirSync(OUT, { recursive: true });
 const DIST = path.join(__dirname, '../dist'), MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp' };
 const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name} — ${detail}`); };
 (async () => {
@@ -19,7 +19,8 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
   // tap the centre of the n-th-from-last hit area (popup / sheet buttons are registered last)
   const tapHit = async (pick) => { const h = await pg.evaluate(pick); if (!h) return false; await pg.mouse.click(h.x + h.w / 2, h.y + h.h / 2); await pg.waitForTimeout(250); return true; };
 
-  await boot('?fakeads=1');
+  await boot('?fakeads=1&hsfake=1');
+  await pg.waitForFunction(() => CST.HS && CST.HS.result, null, { timeout: 10000 });
   await shot('01_start');
   rec('Boot without errors', errs.length === 0, `${errs.length} errors`);
   // joystick
@@ -32,7 +33,7 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
     await pg.mouse.click(10 + (390 - 20 - 28) / 5 * (i + 0.5) + 7 * i, 844 - 30 - 10 - 30); await pg.waitForTimeout(300);
     const open = await pg.evaluate(() => APP.ui.panel); await pg.mouse.wheel(0, 300).catch(() => { });
     await shot('02_panel_' + name); rec(`Nav opens ${name}`, open === name, `panel=${open}`);
-    await pg.evaluate(() => APP.ui.close());
+    await pg.evaluate(() => APP.ui.close()); await pg.waitForTimeout(100);   // let a frame redraw the hit areas
   }
   // share popup -> share button -> reward
   const c0 = await pg.evaluate(() => { CST.Minis.popShare(); return __game.S.coins; }); await pg.waitForTimeout(300); await shot('03_share');
@@ -41,10 +42,36 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
   rec('Share calls shareAppMessage and rewards once', sh.called && sh.coins > c0, JSON.stringify(sh));
   await pg.evaluate(() => APP.ui.closePopup && APP.ui.closePopup());
   // free coins via rewarded ad
-  const c1 = await pg.evaluate(() => { CST.Ads.t = 999; CST.Minis.popCoins(); return __game.S.coins; }); await pg.waitForTimeout(300); await shot('04_coins');
+  const c1 = await pg.evaluate(() => { CST.Ads.t = 999; window.__adUnits = []; CST.Minis.popCoins(); return __game.S.coins; }); await pg.waitForTimeout(300); await shot('04_coins');
   await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(900);
-  const co = await pg.evaluate(() => ({ ads: window.__adShown || 0, coins: __game.S.coins, pop: !!APP.ui.pop, paused: APP.paused }));
-  rec('Free Coins plays a rewarded ad and grants coins', co.ads >= 1 && co.coins > c1 && !co.paused, JSON.stringify(co));
+  const co = await pg.evaluate(() => ({ unit: (window.__adUnits || [])[0], coins: __game.S.coins, pop: !!APP.ui.pop, paused: APP.paused }));
+  rec('Free Coins (+ button) plays "Coin Purchase" via HS and grants coins', co.unit === 'ad7698666142394484737' && co.coins > c1 && !co.paused, JSON.stringify(co));
+  // every placement: right ad unit, effect applied exactly once
+  const units = { R1_task_x2: 'ad7698648532580665345', R2_pad: 'ad7698648584857667590', R3_rush: 'ad7698648496550774785', R4_vip_tip: 'ad7698646392449107969', R5_coins: 'ad7698666142394484737', R6_rush: 'ad7698648584857683974' };
+  for (const [slot, unit] of Object.entries(units)) {
+    const r = await pg.evaluate(async slot => {
+      const A = CST.Ads; A.t += 1000; window.__adUnits = []; let n = 0; const can = A.canReward(slot, 0);
+      A.reward(slot, () => n++);
+      await new Promise(res => { const t0 = Date.now(); const w = () => (!A.busy || Date.now() - t0 > 4000) ? res() : setTimeout(w, 50); setTimeout(w, 50); });
+      return { can, granted: n, unit: window.__adUnits[0], paused: APP.paused, label: CST.HS.cfg.places[slot.split('_')[0]] };
+    }, slot);
+    rec(`HS place "${r.label}" (${slot})`, r.can && r.granted === 1 && r.unit === unit && !r.paused, JSON.stringify(r));
+  }
+  // interstitial: game pacing decides, HS "Inter1" plays
+  const it = await pg.evaluate(async () => {
+    const A = CST.Ads, C = A.cfg(); A.t += 1000; A.lastInter = A.lastReward = A.lastAny = -1e9; __game.S.taskIndex = Math.max(__game.S.taskIndex, C.interFirstTask); __game.player.hold = null; window.__adUnits = [];
+    const why = A.interBlocked(); const ok = A.tryInter('I6_idle');
+    await new Promise(r => setTimeout(r, (C.interDelay + 1) * 1000)); return { why, ok, unit: window.__adUnits[0], count: A.interCount, paused: APP.paused };
+  });
+  rec('Interstitial plays "Inter1" via HS', it.ok && it.unit === 'ad7698650602527574068' && it.count >= 1 && !it.paused, JSON.stringify(it));
+  // closed early -> no reward
+  const sk = await pg.evaluate(async () => {
+    const A = CST.Ads; A.t += 1000; let n = 0; const real = tt.createRewardedVideoAd;
+    tt.createRewardedVideoAd = o => { const ad = real(o); const on = ad.onClose; ad.onClose = f => on(r => f({ isEnded: false })); return ad; };
+    A.reward('R3_rush', () => n++); await new Promise(r => setTimeout(r, 1500)); tt.createRewardedVideoAd = real;
+    return { granted: n, paused: APP.paused, err: CST.HS.sdk.lastAdError };
+  });
+  rec('Ad closed early gives no reward', sk.granted === 0 && !sk.paused, JSON.stringify(sk));
   // home-screen + revisit popups render
   for (const f of ['popAdd', 'popRevisit']) { await pg.evaluate(f => CST.Minis[f](), f); await pg.waitForTimeout(250); const ok = await pg.evaluate(() => !!APP.ui.pop); await shot('05_' + f); rec(`${f} popup opens`, ok, ''); await pg.evaluate(() => APP.ui.closePopup()); }
   // long autoplay
@@ -59,19 +86,15 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
   const ld = await pg.evaluate(() => ({ coins: Math.floor(__game.S.coins), task: __game.S.taskIndex }));
   rec('Save/load through tt storage', ld.task === sv.task && Math.abs(ld.coins - sv.coins) <= 1, `${JSON.stringify(sv)} → ${JSON.stringify(ld)}`);
   // no ad SDK at all (fakeads off) must not break anything
-  // emulator without fake SDK: test-ad overlay
-  await boot(''); const c2 = await pg.evaluate(() => { CST.Ads.t = 999; CST.Minis.popCoins(); return __game.S.coins; }); await pg.waitForTimeout(300);
-  await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(300); await shot('07_mock_ad');
-  const mk = await pg.evaluate(() => ({ overlay: !!APP.ui.ad, paused: APP.paused })); rec('Emulator test-ad overlay shows and pauses', mk.overlay && mk.paused, JSON.stringify(mk));
-  await pg.evaluate(() => { const a = APP.ui.ad; APP.ui.ad = null; a.end(true); });
-  // production-like client with no ad SDK: ads off, no fake overlay, no reward
-  await boot('?noads=1'); await pg.evaluate(() => { CST.Ads.t = 999; CST.Minis.popCoins(); }); await pg.waitForTimeout(300);
-  await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(300);
-  const noad = await pg.evaluate(() => ({ enabled: CST.Ads.enabled, overlay: !!APP.ui.ad, coins: __game.S.coins, chips: CST.Minis.chipList.length })); await shot('08_no_ad_sdk');
-  rec('No ad SDK: ads disabled, no fake ad, no free reward', !noad.enabled && !noad.overlay, JSON.stringify(noad));
+  // HS backend unreachable (no tt.request): no ad is offered anywhere, the game still plays
+  const eOff = errs.length; await boot('?fakeads=1'); await pg.waitForTimeout(1500);
+  const off = await pg.evaluate(() => ({ coins: CST.Ads.canReward('R5', 0), inter: CST.Ads.interBlocked(), hs: CST.HS.result }));
+  await pg.evaluate(() => { CST.Ads.t = 999; CST.Minis.popCoins(); }); await pg.waitForTimeout(300); await shot('07_hs_offline');
+  const offErr = errs.splice(eOff).filter(e => !/HS\.TikTokSDK|ERR_TUNNEL|ERR_|Failed to load resource/.test(e));   // expected: HS server unreachable here
+  rec('HS offline: no ad offered, no crash', off.coins === false && !!off.inter && offErr.length === 0, JSON.stringify(off) + (offErr.length ? ' ' + offErr.join(' | ') : ''));
   // TikTok iOS quirks seen on device: AudioParams without automation methods, capsule rect in physical px
   const e0 = errs.length;
-  await boot('?ttquirks=1');
+  await boot('?ttquirks=1&hsfake=1');
   const q = await pg.evaluate(async () => {
     CST.Audio.unlock(); const names = ['coin', 'pick', 'drop', 'pop', 'ding', 'cash', 'unlock', 'task', 'star', 'angry', 'boost'];
     await new Promise(r => requestAnimationFrame(() => { for (const n of names) { CST.Audio.last = {}; CST.Audio.play(n); } r(); }));   // inside a frame, like on device

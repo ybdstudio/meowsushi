@@ -45,3 +45,17 @@ cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, tt
   `adapter.js` now converts physical-px values, clamps the top inset to 15 % of the screen and logs `[safe] {...}` at boot.
   If the HUD still sits wrong on a device, copy that `[safe]` line from vConsole.
 - Emulator `?ttquirks=1` reproduces both quirks; `tools/native_test.js` covers them (19 checks).
+
+## Ads: HS TikTok SDK (hs-game.js 3.0.0 + hs-tiktok-sdk 1.0.7)
+- Files: `native/hs-sdk/` (copied next to game.js in the package, do not edit), `native/hs-config.json` (gameId, sdkKey,
+  slot -> dashboard label), `native/meow-sushi.hs-dashboard.json` (placements + reward defaults; the build injects the
+  defaults into game.js and copies the file next to the package for hs-check). Bridge: `native/src/hs_native.js`.
+- Slot -> place: R1 "Double Task Bonus" · R2 "Buying Pad" · R3 "Meow Rush" · R4 "VIP tip" · R5 "Coin Purchase" ·
+  R6 "Grand Opening" · every interstitial (I1-I6) "Inter1". Labels are matched exactly (case and spaces).
+- The game keeps its pacing (cooldowns, caps, not while carrying); an offer only appears when HSGame.canShowAd(label).
+- Rewards: each rewarded place gives one `ad_effect` item; onGive runs that placement's effect (sized to the economy).
+  `coins` / `stars` (category currency) are fixed extras ops can add on the dashboard without a build.
+- HSGame logs in (the game no longer calls tt.login). Share / home screen / revisit still use the TikTok API directly.
+- Check: `node tools/build_native.js && node tools/hs/hs-check.mjs dist/meow-sushi` (0 fail; the "capitals" warnings are
+  expected because the dashboard labels have capitals; "calls TikTok directly" = share / missions).
+- Emulator: `?fakeads=1&hsfake=1` = fake TikTok ads + fake HS backend serving the dashboard JSON.

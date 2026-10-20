@@ -1,0 +1,31 @@
+{
+  "iaa_config": {
+    "placements": [
+      { "label": "Double Task Bonus", "ads": [ { "id": "ad7698648532580665345" } ] },
+      { "label": "Buying Pad",        "ads": [ { "id": "ad7698648584857667590" } ] },
+      { "label": "Meow Rush",         "ads": [ { "id": "ad7698648496550774785" } ] },
+      { "label": "VIP tip",           "ads": [ { "id": "ad7698646392449107969" } ] },
+      { "label": "Coin Purchase",     "ads": [ { "id": "ad7698666142394484737" } ] },
+      { "label": "Grand Opening",     "ads": [ { "id": "ad7698648584857683974" } ] },
+      { "label": "Inter1",            "ads": [ { "id": "ad7698650602527574068" } ] }
+    ],
+    "rewards": {
+      "Double Task Bonus": { "double_task": 1 },
+      "Buying Pad":        { "finish_pad": 1 },
+      "Meow Rush":         { "meow_rush": 1 },
+      "VIP tip":           { "vip_tip": 1 },
+      "Coin Purchase":     { "free_coins": 1 },
+      "Grand Opening":     { "rush_extend": 1 }
+    },
+    "items": {
+      "double_task": { "category": "ad_effect", "name": "Double task reward" },
+      "finish_pad":  { "category": "ad_effect", "name": "Finish building now" },
+      "meow_rush":   { "category": "ad_effect", "name": "Meow Rush" },
+      "vip_tip":     { "category": "ad_effect", "name": "VIP tip x3" },
+      "free_coins":  { "category": "ad_effect", "name": "Free coins" },
+      "rush_extend": { "category": "ad_effect", "name": "Grand Opening +45s" },
+      "coins":       { "category": "currency",  "name": "Coins" },
+      "stars":       { "category": "currency",  "name": "Stars" }
+    }
+  }
+}

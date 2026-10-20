@@ -27,9 +27,36 @@
     shareAppMessage: o => { window.__shared = o; setTimeout(() => o.success && o.success({}), 100); }
   };
   if (new URLSearchParams(location.search).get('fakeads') === '1') {
-    const mk = () => { const h = {}; return { onClose: f => h.c = f, offClose() { }, onError: f => h.e = f, offError() { }, load: () => Promise.resolve(), show: () => { window.__adShown = (window.__adShown || 0) + 1; setTimeout(() => h.c && h.c({ isEnded: true }), 50); return Promise.resolve(); } }; };
+    const mk = o => { const h = {}; (window.__adUnits = window.__adUnits || []).push(o && o.adUnitId); return { onClose: f => h.c = f, offClose() { }, onError: f => h.e = f, offError() { }, load: () => Promise.resolve(), show: () => { window.__adShown = (window.__adShown || 0) + 1; setTimeout(() => h.c && h.c({ isEnded: true }), 50); return Promise.resolve(); } }; };
     tt.createRewardedVideoAd = mk; tt.createInterstitialAd = mk;
   }
+})();
+</script>
+<script src="hs-tiktok-sdk.min.js"></script>
+<script>
+/* CommonJS require for the two HS files (the native runtime has a real require). */
+window.require = p => ({ './hs-tiktok-sdk.min.js': window.HSTikTokSDK, './hs-game.js': window.HSGame })[p];
+</script>
+<script src="hs-game.js"></script>
+<script>
+/* ?hsfake=1: a fake HS backend over tt.request serving ../meow-sushi.hs-dashboard.json as the live dashboard
+   (unit types: Inter1 interstitial, the rest rewarded). Without it the SDK tries the real server and ads stay off. */
+(function () {
+  const q = new URLSearchParams(location.search); if (q.get('hsfake') !== '1') return;
+  const x = new XMLHttpRequest(); x.open('GET', '../meow-sushi.hs-dashboard.json', false); x.send();
+  const iaa = JSON.parse(x.responseText).iaa_config, inter = new Set(['Inter1']);
+  const aps = [].concat(...iaa.placements.map(p => p.ads.map(a => ({ id: a.id, type: inter.has(p.label) ? 'interstitial' : 'rewarded', status: 'active' }))));
+  const route = (ep, data) => {
+    if (ep === '/api/login') return { success: true, session_token: 'emu', open_id: 'emu_open', last_updated_timestamp: 1, ack_required: true, refund_mode: 'auto', aps, iaa_config: JSON.stringify(iaa) };
+    if (ep === '/api/ads/config') return { success: true, aps, iaa_config: JSON.stringify(iaa) };
+    if (ep === '/api/pending_rewards') return { success: true, pending_count: 0, rewards: [] };
+    if (ep === '/api/sync') return { success: true, last_updated_timestamp: 2 };
+    if (ep === '/api/shop/items') return { success: true, items: [] };
+    if (ep === '/api/orders/mark_delivered') return { success: true, delivered: [], already: [], not_found: [], not_paid: [] };
+    return { success: false, error: 'emulator: no route ' + ep };
+  };
+  window.__hsRequests = [];
+  tt.request = o => { const ep = String(o.url).replace(/^https?:\/\/[^/]+/, ''); __hsRequests.push(ep); setTimeout(() => o.success && o.success({ statusCode: 200, data: JSON.stringify(route(ep, o.data)), header: {} }), 20); return { abort() { } }; };
 })();
 </script>
 <script src="game.js"></script>
