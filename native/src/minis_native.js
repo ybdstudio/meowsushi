@@ -44,7 +44,7 @@
     const m = this.st(), C = CST.CONFIG.MINIS, n = this.amount(C.addMinutes), o = TT();
     const show = ok => {
       const done = !!m.addClaimed;
-      this.app.ui.popup({ title: 'Home Screen Gift', hdr: 'hdr_mega', items: steps(m.added ? 'Added ✓' : 'Add to Home Screen',
+      this.app.ui.popup({ title: 'Launch Reward', hdr: 'hdr_mega', items: steps(m.added ? 'Added ✓' : 'Add to Home Screen',
         { text: 'Open Meow Sushi Conveyor from the icon on your home screen.', item: { t: 'img', art: 'launch_phone' } }, n, ok && !done,
         done ? 'Thanks for adding Meow Sushi Conveyor!' : ok ? 'Thanks for adding Meow Sushi Conveyor!' : 'Open the game from your home screen to claim.',
         () => { if (can(o, 'addShortcut')) o.addShortcut({ success: () => { m.added = true; this.g.save(); check(); }, fail: () => this.app.ui.toast('Could not add the shortcut', 'c_fx_heart') }); else { m.added = true; this.g.save(); show(true); } },
@@ -56,7 +56,7 @@
   };
   M.popRevisit = function () {
     const m = this.st(), n = this.amount(CST.CONFIG.MINIS.revisitMinutes), done = m.revisitDay === today(), o = TT();
-    const show = ok => this.app.ui.popup({ title: 'Revisit Gift', hdr: 'hdr_mega', items: steps('Go', { text: 'Come back to Meow Sushi Conveyor from your TikTok profile.', item: { t: 'side' } }, n, ok && !done,
+    const show = ok => this.app.ui.popup({ title: 'Entry Reward', hdr: 'hdr_mega', items: steps('Go', { text: 'Come back to Meow Sushi Conveyor from your TikTok profile.', item: { t: 'side' } }, n, ok && !done,
       done ? 'Come back tomorrow for another gift.' : 'Reopen the game from your profile to claim.',
       () => { if (can(o, 'startEntranceMission')) o.startEntranceMission({ complete: () => { } }); else { m.visited = today(); this.g.save(); show(true); } },
       () => { m.revisitDay = today(); this.closePop(); this.grant(n, 0, 'Revisit gift'); try { o && o.reportMissionRewardGranted && o.reportMissionRewardGranted({ type: 'revisit' }); } catch (e) { } }) });

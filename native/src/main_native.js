@@ -22,6 +22,7 @@
     if (shown > 0.02) { ctx.save(); rr(bx, by, bw * shown, bh, 13); ctx.clip(); ctx.fillStyle = '#ffb300'; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = '#ffc928'; const o = (Date.now() / 40) % 24; for (let x = bx - 30 + o; x < bx + bw; x += 24) { ctx.beginPath(); ctx.moveTo(x, by + bh); ctx.lineTo(x + 12, by + bh); ctx.lineTo(x + 24, by); ctx.lineTo(x + 12, by); ctx.closePath(); ctx.fill(); } ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(bx, by + 2, bw, 4); ctx.restore(); }
     ctx.font = 'bold 20px "PingFang SC",Arial,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = '#4a2614';
     const t = shown >= 0.999 ? 'Ready!' : `Loading... ${Math.round(shown * 100)}%`; ctx.strokeText(t, W / 2, by + bh + 26); ctx.fillStyle = '#fff'; ctx.fillText(t, W / 2, by + bh + 26);
+    ctx.font = '9px "PingFang SC",Arial,sans-serif'; ctx.textAlign = 'right'; ctx.lineWidth = 1; ctx.strokeStyle = '#8b6239'; ctx.fillStyle = '#f5f5f5'; const v = `v${CST.CONFIG.VERSION}.0`; ctx.strokeText(v, W - 6, 12); ctx.fillText(v, W - 6, 12);
     if (loading) requestAnimationFrame(drawLoading);
   };
   requestAnimationFrame(drawLoading);
