@@ -71,6 +71,9 @@ print('props: dining + empty counter done')
 
 # ---------------------------------------------------------------- manifest (keep the current props frames, e.g. hp_pot)
 cur = open('js/manifest.js').read(); CUR = json.loads(cur[cur.index('CST.MANIFEST=') + len('CST.MANIFEST='):].rstrip().rstrip(';'))
-CUR['atlases']['char_chef'] = chefA; CUR['chars']['chef'] = M['chars']['chef']
+# characters: main's entries (chef updated here; later steps patch others), props frames keep the current ones
+for n in M['atlases']:
+    if n != 'props': CUR['atlases'][n] = M['atlases'][n]
+CUR['chars'] = M['chars']
 open('js/manifest.js', 'w').write(cur[:cur.index('CST.MANIFEST=') + len('CST.MANIFEST=')] + json.dumps(CUR, separators=(',', ':')) + ';\n')
 print('manifest updated')

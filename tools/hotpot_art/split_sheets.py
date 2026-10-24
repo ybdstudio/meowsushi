@@ -12,6 +12,12 @@ def remove_bg(im):
     dist = np.abs(a[..., :3] - bg).max(axis=2)
     tol = 34 if bg.mean() > 128 else 26
     cand = dist < tol
+    bmn, bmx = border.min(axis=1), border.max(axis=1)
+    if (bmx - bmn).max() < 16 and bmn.min() > 175 and border.std() > 6:
+        # fake "transparent" checkerboard painted into an RGB image: both light greys are background
+        mn, mx = a[..., :3].min(axis=2), a[..., :3].max(axis=2)
+        cand = (mx - mn < 16) & (mn > 178)
+        dist = np.where(cand, 0, 60).astype(np.int16); tol = 30
     lab, n = ndimage.label(cand)
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     bgmask = np.isin(lab, list(edge))
