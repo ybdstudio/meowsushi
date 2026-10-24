@@ -1,0 +1,29 @@
+
+/* ===== Web platforms: compact bottom UI, matching TikTok native "Round 3" (ui_native.js, commit 3dc1542) =====
+   nav: button height min(width*0.72, 56px), icon 52% of height, label 11.5px
+   task card: w = min(100%, 380), h = 50, icon 34, title 14px on ONE line (shrunk to 10.5px, then ellipsis — see web_ui.js),
+              reward 10px top-right, progress bar min(100px, 30%) x 10px with the count beside it
+   bonus pill: 10px text, 18px tall
+   Appended to style.css by build_platform.js. */
+#hud-bottom{gap:6px;padding-bottom:calc(var(--sab) + 8px)}
+
+/* nav */
+#nav{gap:7px}
+#nav .nb{aspect-ratio:auto;height:min(calc((100vw - 48px) / 5 * .72), 56px);border-width:2.5px;border-radius:13px;box-shadow:0 3px 0 #4a2614;padding:2px 0 1px;gap:0;font-size:11.5px}
+#nav .nb svg{width:auto;height:52%}
+#nav .nb:active{transform:translateY(2px);box-shadow:0 1px 0 #4a2614}
+.dot{top:-5px;right:-5px;width:15px;height:15px;border-width:2.5px}
+
+/* task card */
+.task-card{box-sizing:border-box;width:min(100%,380px);max-width:min(100%,380px);height:50px;padding:0 8px;gap:8px;align-items:center;border-width:2.5px;border-radius:13px;box-shadow:0 3px 0 #6b3a22}
+.task-ico{width:34px;height:34px;border-radius:9px;border-width:2px}
+.task-ico svg{width:23px;height:23px}
+.task-main{min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.task-text{font-size:14px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-bot{margin-top:4px;gap:8px}
+.task-bot .bar{flex:none;width:min(100px,40%);height:10px;border-width:1.5px}
+#taskCount{font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.reward{align-self:flex-start;margin-top:5px;font-size:10px}
+
+/* bonus pill */
+.bonus-chip{font-size:10px;line-height:12px;padding:3px 9px;border-radius:8px;background:rgba(74,38,20,.62)}
