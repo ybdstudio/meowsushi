@@ -500,7 +500,7 @@
         A().prop(ctx, 'dine_one_empty', p.x + DINE.one.dx, p.y + DINE.one.dy, DINE.one.w);   // empty table rebuilt from the single-guest sheet: same furniture in all three states
         solo('L');
       }
-      if (pair || this.oneGuest(t) || this.soloGuest(t, 'L') || this.soloGuest(t, 'R')) A().prop(ctx, 'hp_pot', p.x + 2, p.y - 12, 24);   // hotpot: shared pot in the middle of an occupied table
+      if (!pair && (this.oneGuest(t) || this.soloGuest(t, 'L') || this.soloGuest(t, 'R'))) A().prop(ctx, 'hp_pot', p.x + 2, p.y - 12, 24);   // the pair art has its own shared platter   // hotpot: shared pot in the middle of an occupied table
     }
     // screen point on the bar counter top in front of a belt stool (counter strip = belt.cy + R + 15 … +39)
     counterPt(seat, dx) { const b = this.g.conv.belts[seat.belt] || Object.values(this.g.conv.belts)[0]; const q = this.P(seat.x + 14 + dx, b.cy + b.R + 16 + CT.w * 0.55); q.y -= CT.up; return q; }
