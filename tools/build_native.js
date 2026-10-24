@@ -12,7 +12,8 @@ const SHARED = ['config', 'nav', 'conveyor', 'game', 'bot', 'assets', 'render', 
 const NATIVE = ['ui_native', 'minis_native', 'hs_native', 'main_native'].map(n => 'native/src/' + n + '.js');
 
 // ---- HS SDK config (native/hs-config.json + defaults from native/meow-sushi.hs-dashboard.json)
-const HS = JSON.parse(rd('native/hs-config.json')), DASH = JSON.parse(rd('native/meow-sushi.hs-dashboard.json'));
+const HS_FILE = fs.existsSync(path.join(R, 'native/hs-config.json')) ? 'native/hs-config.json' : (console.warn('! native/hs-config.json missing: using placeholders from native/hs-config.example.json (ads/cloud off)'), 'native/hs-config.example.json');
+const HS = JSON.parse(rd(HS_FILE)), DASH = JSON.parse(rd('native/meow-sushi.hs-dashboard.json'));
 if (opt('hs-key')) HS.sdkKey = opt('hs-key'); if (opt('hs-game')) HS.gameId = opt('hs-game');
 const hsConfig = () => 'window.CST.HS_CONFIG = ' + JSON.stringify({ gameId: HS.gameId, sdkKey: HS.sdkKey, places: HS.places,
   defaults: { rewards: DASH.iaa_config.rewards, items: DASH.iaa_config.items } }) + ';\n';
