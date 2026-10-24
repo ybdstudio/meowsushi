@@ -36,7 +36,7 @@
       try { storage.removeItem(CST.CONFIG.SAVE_KEY); } catch (e) { }
       const game = this.game = new CST.Game({ storage, seed: Date.now() & 0xffff, load: false }); game.save();
       this.renderer.g = game; this.renderer.follow(0, true); this.ui.bindGame(game); this.ui.close(); CST.Minis.bind(game);
-      this.ui.toast('New restaurant! Grab salmon from the crate', 'c_box_salmon', true);
+      this.ui.toast('New restaurant! Grab beef from the crate', 'c_box_salmon', true);
     },
     start() {
       const game = this.game = new CST.Game({ storage, seed: Date.now() & 0xffff });
@@ -50,7 +50,7 @@
       T.onHide && T.onHide(() => game.save());
       if (CST.HS && CST.HS.sdk) CST.HS.flush();                // HSGame logs in (started at boot); rewards that arrived early
       else try { T.login && T.login({ success() { }, fail() { } }); } catch (e) { }   // silent login (platform requirement)
-      this.ui.toast(game.loaded ? 'Welcome back!' : 'Welcome! Grab salmon from the crate', game.loaded ? 'c_fx_heart' : 'c_box_salmon', true);
+      this.ui.toast(game.loaded ? 'Welcome back!' : 'Welcome! Grab beef from the crate', game.loaded ? 'c_fx_heart' : 'c_box_salmon', true);
       // touch: UI first, otherwise a floating joystick
       const joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0, v: { x: 0, y: 0 }, R: 50 }; let uiId = null;
       const pt = t => ({ x: t.clientX !== undefined ? t.clientX : t.pageX, y: t.clientY !== undefined ? t.clientY : t.pageY });

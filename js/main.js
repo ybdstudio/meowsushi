@@ -19,7 +19,7 @@
       this.ui.bindGame(game); this.ui.close && this.ui.close();
       if (this.bot) this.bot = new CST.Bot(game);
       window.__game = game; CST.Audio.on = game.S.settings.sound; CST.Minis.bind(game);
-      this.ui.toast('New restaurant! Grab salmon from the crate', 'c_box_salmon', true);
+      this.ui.toast('New restaurant! Grab beef from the crate', 'c_box_salmon', true);
     },
     start(fresh) {
       if (fresh) { try { storage && storage.removeItem(CST.CONFIG.SAVE_KEY); } catch (e) { } }
@@ -37,7 +37,7 @@
       CST.Ads.init(this); CST.Minis.init(this);
       document.querySelectorAll('[data-art]').forEach(im => { im.src = (CST.UIART || {})[im.dataset.art] || ''; });
       this.ui.started = true;
-      if (!game.loaded) setTimeout(() => this.ui.toast('Welcome! Grab salmon from the crate', 'c_box_salmon', true), 400);
+      if (!game.loaded) setTimeout(() => this.ui.toast('Welcome! Grab beef from the crate', 'c_box_salmon', true), 400);
       else this.ui.toast('Welcome back!', 'c_fx_heart', true);
       let last = performance.now(), acc = 0; const STEP = 1 / 60;
       const loop = (now) => {

@@ -299,7 +299,7 @@
       const g = this.g, L = g.C.LAYOUT, list = [];
       const push = (d, fn) => list.push({ d, fn });
       for (const k in g.stations) { const s = g.stations[k]; push(s.x + s.y + 20, () => this.drawStation(s)); }
-      if (g.has('rice')) push(L.rice.x + L.rice.y + 20, () => { this.propAt(L.rice.prop, L.rice.x, L.rice.y, 46, 70, 84, 0, true); this.tagW(L.rice.x, L.rice.y, 70, `Rice x${g.C.RICE_MULT}`); });
+      if (g.has('rice')) push(L.rice.x + L.rice.y + 20, () => { this.propAt(L.rice.prop, L.rice.x, L.rice.y, 46, 70, 84, 0, true); this.tagW(L.rice.x, L.rice.y, 70, `Broth x${g.C.RICE_MULT}`); });
       for (const bn of g.bins()) push(bn.x + bn.y + 8, () => { const q = this.P(bn.x, bn.y); A().prop(this.ctx, 'trash_bin', q.x, q.y + 12, 30); const h = g.player.hold;
         if (h && h.kind !== 'dirty' && Math.hypot(g.player.x - bn.x, g.player.y - bn.y) < 160) this.tagW(bn.x, bn.y, 46, 'Trash'); });
       if (g.has('storage')) push(L.storage.x + L.storage.y + 20, () => { this.propAt(L.storage.prop, L.storage.x, L.storage.y, 40, 60, 62); this.tagW(L.storage.x, L.storage.y, 60, 'Auto-feed'); });

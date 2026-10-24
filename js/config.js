@@ -1,11 +1,11 @@
-/* Cat Sushi Conveyor Tycoon — data-driven configuration (economy, layout, progression).
+/* Meow Hotpot Conveyor — data-driven configuration (economy, layout, progression).
    Everything tunable lives here; tools/sim.js runs the real game logic against this file. */
 (function (root) {
   const CST = root.CST = root.CST || {};
 
   const C = CST.CONFIG = {
     VERSION: 1,
-    SAVE_KEY: 'cat_sushi_tycoon_v1',
+    SAVE_KEY: 'cat_hotpot_tycoon_v1',
     WORLD: { W: 720, H: 640, CELL: 10 },
     VIEW_W: 450,                  // screen units visible horizontally on a phone
     START_COINS: 30,
@@ -16,18 +16,18 @@
 
     // ---------------- recipes ----------------
     RECIPES: {
-      salmon:  { name: 'Salmon Nigiri', icon: 'f_salmon',  plate: 'c_plate_blue',   price: 6,  prep: 2.6, ing: 'salmon',  belt: true },
-      tuna:    { name: 'Tuna Nigiri',   icon: 'f_tuna',    plate: 'c_plate_pink',   price: 9,  prep: 3.0, ing: 'tuna',    belt: true },
-      maki:    { name: 'Maki Roll',     icon: 'f_maki',    plate: 'c_plate_green',  price: 14, prep: 3.4, ing: 'veg',     belt: true },
-      premium: { name: 'Premium Ikura', icon: 'f_premium', plate: 'c_plate_yellow', price: 50, prep: 4.5, ing: 'ikura',   belt: false },
-      drink:   { name: 'Matcha Drink',  icon: 'dr_matcha', plate: null,             price: 12, prep: 2.0, ing: null,      belt: false },
-      dessert: { name: 'Mochi Dessert', icon: 'd_mochi',   plate: null,             price: 16, prep: 2.8, ing: null,      belt: false }
+      salmon:  { name: 'Sliced Beef', icon: 'f_salmon',  plate: 'c_plate_blue',   price: 6,  prep: 2.6, ing: 'salmon',  belt: true },
+      tuna:    { name: 'Shrimp & Fish Balls',   icon: 'f_tuna',    plate: 'c_plate_pink',   price: 9,  prep: 3.0, ing: 'tuna',    belt: true },
+      maki:    { name: 'Veggies & Mushrooms',     icon: 'f_maki',    plate: 'c_plate_green',  price: 14, prep: 3.4, ing: 'veg',     belt: true },
+      premium: { name: 'Wagyu Platter', icon: 'f_premium', plate: 'c_plate_yellow', price: 50, prep: 4.5, ing: 'ikura',   belt: false },
+      drink:   { name: 'Kumquat Tea',  icon: 'dr_matcha', plate: null,             price: 12, prep: 2.0, ing: null,      belt: false },
+      dessert: { name: 'Three-Color Che', icon: 'd_mochi',   plate: null,             price: 16, prep: 2.8, ing: null,      belt: false }
     },
     INGREDIENTS: {
-      salmon: { name: 'Salmon', icon: 'c_ing_salmon',   cost: 1 },
-      tuna:   { name: 'Tuna',   icon: 'c_ing_tuna',     cost: 2 },
-      veg:    { name: 'Cucumber & Nori', icon: 'c_ing_cucumber', cost: 3 },
-      ikura:  { name: 'Ikura',  icon: 'c_box_salmon',   cost: 8 }
+      salmon: { name: 'Beef', icon: 'c_ing_salmon',   cost: 1 },
+      tuna:   { name: 'Shrimp',   icon: 'c_ing_tuna',     cost: 2 },
+      veg:    { name: 'Veggies', icon: 'c_ing_cucumber', cost: 3 },
+      ikura:  { name: 'Wagyu',  icon: 'c_box_salmon',   cost: 8 }
     },
     STATION: { inMax: 10, outMax: 6 },
 
@@ -74,7 +74,7 @@
       clean:     { name: 'Cleaning Speed',    icon: 'up_clean', costs: [350, 1000], minPhase: [4, 6] },
       staff:     { name: 'Staff Training',    icon: 'up_staff', costs: [700, 1700], minPhase: [6, 7] }
     },
-    // ---------------- ads (see 'Meow Sushi – Kịch bản Ads', option B: inter cooldown 75 s) ----------------
+    // ---------------- ads (see 'Meow Hotpot – Kịch bản Ads', option B: inter cooldown 75 s) ----------------
     ADS: {
       units: { rewarded: 'REWARDED_AD_UNIT_ID', inter: 'INTERSTITIAL_AD_UNIT_ID' },   // TikTok Minis ad unit ids (Developer Portal)
       interFirstDelay: 30, interFirstTask: 1, interFirstForce: true, interCooldown: 45, interAfterReward: 30, interCapSession: 30, interFallback: 90, interDelay: 0.6, resumeAfter: 60,
@@ -102,7 +102,7 @@
         kitchen2: { x: 560, y: 0,   w: 160, h: 200, floor: 'tile',   unlock: 'st_premium',  label: 'Premium Kitchen' },
         vip:      { x: 560, y: 200, w: 160, h: 220, floor: 'rug',    unlock: 'vip_lounge',  label: 'VIP Lounge' },
         diningB:  { x: 200, y: 420, w: 360, h: 220, floor: 'wood',   unlock: 'seats_a67',   label: 'Dining Room 2' },
-        hall:     { x: 560, y: 420, w: 160, h: 220, floor: 'tatami', unlock: 'hall',        label: 'Tatami Hall' }
+        hall:     { x: 560, y: 420, w: 160, h: 220, floor: 'tatami', unlock: 'hall',        label: 'Hotpot Hall' }
       },
       door: { x: 100, y: 640 },
       spawn: { x: 100, y: 720 },
@@ -167,16 +167,16 @@
     // ---------------- unlocks (world build pads / Shop) ----------------
     UNLOCKS: [
       { id: 'seat_a2',    name: 'Second Stool',         cost: 45,   at: 'earn100', pad: { x: 245, y: 325 }, icon: 'stool' },
-      { id: 'st_tuna',    name: 'Tuna Station',         cost: 100,  at: 'seat2',   pad: { x: 290, y: 104 }, icon: 'f_tuna' },
+      { id: 'st_tuna',    name: 'Shrimp Station',         cost: 100,  at: 'seat2',   pad: { x: 290, y: 104 }, icon: 'f_tuna' },
       { id: 'seat_a3',    name: 'Third Stool',          cost: 90,   at: 'tuna',    pad: { x: 160, y: 325 }, icon: 'stool' },
       { id: 'queue',      name: 'Waiting Queue',        cost: 70,   at: 'tuna5',   pad: { x: 160, y: 600 }, icon: 'bench_red' },
-      { id: 'rice',       name: 'Rice Station',         cost: 110,  at: 'rice',    pad: { x: 535, y: 108 }, icon: 'c_rice_bowl' },
-      { id: 'storage',    name: 'Fish Storage',         cost: 150,  at: 'storage', pad: { x: 70, y: 150 }, icon: 'c_box_fish' },
+      { id: 'rice',       name: 'Broth Station',         cost: 110,  at: 'rice',    pad: { x: 535, y: 108 }, icon: 'c_rice_bowl' },
+      { id: 'storage',    name: 'Cold Storage',         cost: 150,  at: 'storage', pad: { x: 70, y: 150 }, icon: 'c_box_fish' },
       { id: 'chef',       name: 'Hire Waiter Cat',      cost: 190,  at: 'chef',    pad: { x: 450, y: 255 }, icon: 'staff_waiter' },
       { id: 'cashier',    name: 'Hire Cashier Cat',     cost: 220,  at: 'chef',    pad: { x: 150, y: 420 }, icon: 'staff_cashier' },
       { id: 'seats_a45',  name: 'Dining Tables',        cost: 240,  at: 'auto10',  pad: { x: 230, y: 375 }, icon: 'table_sq' },
       { id: 'belt_b',     name: 'Conveyor Extension',   cost: 600,  at: 'beltb',   pad: { x: 370, y: 250 }, icon: 'c_stack_blue' },
-      { id: 'st_maki',    name: 'Maki Station',         cost: 450,  at: 'maki',    pad: { x: 440, y: 104 }, icon: 'f_maki' },
+      { id: 'st_maki',    name: 'Veggie Station',         cost: 450,  at: 'maki',    pad: { x: 440, y: 104 }, icon: 'f_maki' },
       { id: 'cleaner',    name: 'Hire Cleaner Cat',     cost: 420,  at: 'cleaner', pad: { x: 150, y: 420 }, icon: 'staff_cleaner' },
       { id: 'vip_lounge', name: 'VIP Lounge',           cost: 800,  at: 'vip',     pad: { x: 495, y: 290 }, icon: 'armchair' },
       { id: 'st_premium', name: 'Premium Kitchen',      cost: 650,  at: 'premium', pad: { x: 505, y: 160 }, icon: 'f_premium' },
@@ -185,7 +185,7 @@
       { id: 'st_dessert', name: 'Dessert Station',      cost: 850,  at: 'dessert', pad: { x: 660, y: 112 }, icon: 'd_mochi' },
       { id: 'waiter',     name: 'Hire Server Cat',      cost: 850,  at: 'waiter',  pad: { x: 380, y: 320 }, icon: 'staff_server' },
       { id: 'vip_sofa2',  name: 'VIP Sofa 2',           cost: 950,  at: 'sofa2',   pad: { x: 545, y: 380 }, icon: 'armchair2' },
-      { id: 'hall',       name: 'Tatami Hall',          cost: 1800, at: 'hall',    pad: { x: 570, y: 405 }, icon: 'floor_tatami' },
+      { id: 'hall',       name: 'Hotpot Hall',          cost: 1800, at: 'hall',    pad: { x: 570, y: 405 }, icon: 'floor_tatami' },
       { id: 'chef2',      name: 'Hire 2nd Waiter Cat',  cost: 1500, at: 'hall',    pad: { x: 470, y: 330 }, icon: 'staff_waiter' },
       { id: 'manager',    name: 'Hire Manager Cat',     cost: 2200, at: 'manager', pad: { x: 640, y: 455 }, icon: 'staff_manager' },
       { id: 'final_decor',name: 'Grand Decoration',     cost: 2600, at: 'decor',   pad: { x: 540, y: 545 }, icon: 'sakura_tree' },
@@ -195,27 +195,27 @@
     // ---------------- task sequence (one primary task at a time) ----------------
     // type: counter key in stats (delta since task start) | 'unlock' id | 'upgrade' id>=level | 'coinsHave'
     TASKS: [
-      { id: 'pick',     ph: 1, t: 'Pick up 3 salmon from the crate',  type: 'stat', key: 'ingPicked', n: 3,  reward: { coins: 10 }, target: 'crate:salmon' },
-      { id: 'prep',     ph: 1, t: 'Prepare 3 salmon sushi',           type: 'stat', key: 'made_salmon', n: 3, reward: { coins: 10 }, target: 'station:salmon' },
+      { id: 'pick',     ph: 1, t: 'Pick up 3 beef from the crate',  type: 'stat', key: 'ingPicked', n: 3,  reward: { coins: 10 }, target: 'crate:salmon' },
+      { id: 'prep',     ph: 1, t: 'Slice 3 plates of beef',           type: 'stat', key: 'made_salmon', n: 3, reward: { coins: 10 }, target: 'station:salmon' },
       { id: 'place',    ph: 1, t: 'Place 3 plates on the conveyor',   type: 'stat', key: 'beltLoaded', n: 3, reward: { coins: 10 }, target: 'loader:A' },
       { id: 'serve3',   ph: 1, t: 'Serve 3 customers (take payment at the register)', type: 'stat', key: 'paid', n: 3, reward: { coins: 15, stars: 1 }, target: 'cashier' },
       { id: 'earn100',  ph: 1, t: 'Earn 100 coins',                   type: 'stat', key: 'earned', n: 100, reward: { stars: 1 }, target: 'pile' },
       { id: 'seat2',    ph: 2, t: 'Unlock the second seat',           type: 'unlock', id2: 'seat_a2', reward: { coins: 20 } },
-      { id: 'tuna',     ph: 2, t: 'Unlock the Tuna Station',          type: 'unlock', id2: 'st_tuna', reward: { coins: 20 } },
-      { id: 'tuna5',    ph: 2, t: 'Prepare 5 tuna sushi',             type: 'stat', key: 'made_tuna', n: 5, reward: { coins: 30, stars: 1 }, target: 'station:tuna' },
+      { id: 'tuna',     ph: 2, t: 'Unlock the Shrimp Station',          type: 'unlock', id2: 'st_tuna', reward: { coins: 20 } },
+      { id: 'tuna5',    ph: 2, t: 'Prepare 5 shrimp plates',             type: 'stat', key: 'made_tuna', n: 5, reward: { coins: 30, stars: 1 }, target: 'station:tuna' },
       { id: 'beltspd',  ph: 2, t: 'Upgrade conveyor speed',           type: 'upgrade', id2: 'beltSpeed', lv: 1, reward: { coins: 30 }, target: 'ui:upgrade' },
-      { id: 'rice',     ph: 3, t: 'Unlock the Rice Station',          type: 'unlock', id2: 'rice', reward: { coins: 40 } },
-      { id: 'storage',  ph: 3, t: 'Unlock Fish Storage',              type: 'unlock', id2: 'storage', reward: { coins: 40 } },
-      { id: 'chef',     ph: 3, t: 'Hire Waiter Cat (carries sushi to the belt)',        type: 'unlock', id2: 'chef', reward: { coins: 50, stars: 1 } },
-      { id: 'auto10',   ph: 3, t: 'Produce 10 sushi automatically',   type: 'stat', key: 'chefLoaded', n: 10, reward: { coins: 60 }, target: 'loader:A' },
+      { id: 'rice',     ph: 3, t: 'Unlock the Broth Station',          type: 'unlock', id2: 'rice', reward: { coins: 40 } },
+      { id: 'storage',  ph: 3, t: 'Unlock Cold Storage',              type: 'unlock', id2: 'storage', reward: { coins: 40 } },
+      { id: 'chef',     ph: 3, t: 'Hire Waiter Cat (carries plates to the belt)',        type: 'unlock', id2: 'chef', reward: { coins: 50, stars: 1 } },
+      { id: 'auto10',   ph: 3, t: 'Produce 10 plates automatically',   type: 'stat', key: 'chefLoaded', n: 10, reward: { coins: 60 }, target: 'loader:A' },
       { id: 'cashier',  ph: 3, t: 'Hire Cashier Cat',                 type: 'unlock', id2: 'cashier', reward: { coins: 60 } },
       { id: 'beltb',    ph: 4, t: 'Extend the conveyor (+3 stools)',         type: 'unlock', id2: 'belt_b', reward: { coins: 60, stars: 1 } },
-      { id: 'maki',     ph: 4, t: 'Unlock Maki sushi',                type: 'unlock', id2: 'st_maki', reward: { coins: 60 } },
+      { id: 'maki',     ph: 4, t: 'Unlock Veggies & Mushrooms',                type: 'unlock', id2: 'st_maki', reward: { coins: 60 } },
       { id: 'cleaner',  ph: 4, t: 'Hire Cleaner Cat',                 type: 'unlock', id2: 'cleaner', reward: { coins: 60 } },
       { id: 'clean5',   ph: 4, t: 'Clean 5 dirty plates',             type: 'stat', key: 'cleaned', n: 5, reward: { coins: 60, stars: 1 }, target: 'dirty' },
       { id: 'vip',      ph: 5, t: 'Unlock the VIP Lounge',            type: 'unlock', id2: 'vip_lounge', reward: { coins: 80 } },
       { id: 'premium',  ph: 5, t: 'Unlock the Premium Station',       type: 'unlock', id2: 'st_premium', reward: { coins: 80 } },
-      { id: 'vip1',     ph: 5, t: 'Serve VIP Customer 1 (bring Premium Ikura)', type: 'stat', key: 'vip1Served', n: 1, reward: { coins: 120, stars: 2 }, target: 'vip:vip1' },
+      { id: 'vip1',     ph: 5, t: 'Serve VIP Customer 1 (bring the Wagyu Platter)', type: 'stat', key: 'vip1Served', n: 1, reward: { coins: 120, stars: 2 }, target: 'vip:vip1' },
       { id: 'dining2',  ph: 5, t: 'Open Dining Room 2 (more tables)', type: 'unlock', id2: 'seats_a67', reward: { coins: 100 } },
       { id: 'drink',    ph: 6, t: 'Unlock the Drink Station',         type: 'unlock', id2: 'st_drink', reward: { coins: 100 } },
       { id: 'drinks5',  ph: 6, t: 'Serve 5 drinks',                   type: 'stat', key: 'drinksServed', n: 5, reward: { coins: 120, stars: 1 }, target: 'station:drink' },
@@ -223,7 +223,7 @@
       { id: 'waiter',   ph: 6, t: 'Hire Server Cat',                  type: 'unlock', id2: 'waiter', reward: { coins: 120 } },
       { id: 'sofa2',    ph: 6, t: 'Unlock VIP Sofa 2',                type: 'unlock', id2: 'vip_sofa2', reward: { coins: 150 } },
       { id: 'vip2',     ph: 6, t: 'Serve VIP Customer 2',             type: 'stat', key: 'vip2Served', n: 1, reward: { coins: 200, stars: 2 }, target: 'vip:vip2' },
-      { id: 'hall',     ph: 7, t: 'Open the Tatami Hall',           type: 'unlock', id2: 'hall', reward: { coins: 200, stars: 1 } },
+      { id: 'hall',     ph: 7, t: 'Open the Hotpot Hall',           type: 'unlock', id2: 'hall', reward: { coins: 200, stars: 1 } },
       { id: 'cap',      ph: 7, t: 'Upgrade conveyor capacity (Lv 2)', type: 'upgrade', id2: 'beltCap', lv: 2, reward: { coins: 200 }, target: 'ui:upgrade' },
       { id: 'manager',  ph: 8, t: 'Hire Manager Cat',                 type: 'unlock', id2: 'manager', reward: { coins: 250, stars: 2 } },
       { id: 'decor',    ph: 8, t: 'Add the Grand Decoration',         type: 'unlock', id2: 'final_decor', reward: { coins: 250 } },
@@ -238,7 +238,7 @@
       { t: 'Earn 2,000 coins', key: 'earned', n: 2000, reward: { stars: 2 } },
       { t: 'Serve 40 customers', key: 'paid', n: 40, reward: { coins: 300, stars: 2 } }
     ],
-    PHASE_NAMES: ['', 'First Sushi Counter', 'First Expansion', 'Kitchen Automation', 'Conveyor Expansion',
+    PHASE_NAMES: ['', 'First Hotpot Counter', 'First Expansion', 'Kitchen Automation', 'Conveyor Expansion',
       'VIP Lounge', 'Drinks & Dessert', 'Restaurant Expansion', 'Grand Opening']
   };
 

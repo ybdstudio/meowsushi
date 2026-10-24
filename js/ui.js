@@ -173,7 +173,7 @@
         <div class="row toggle"><div class="meta"><b>Autoplay demo</b><small>Let the cat play by itself (testing)</small></div><button class="btn ${this.app.autoplay ? '' : 'gray'}" id="tAuto">${this.app.autoplay ? 'On' : 'Off'}</button></div>
         <div class="row"><div class="meta"><b>Progress</b><small>Played ${Math.floor(play / 60)}m ${play % 60}s · ${g.stat('paid')} customers served · saved automatically</small></div><button class="btn" id="tSave">Save</button></div>
         <div class="row"><div class="meta"><b>Reset restaurant</b><small>Deletes your save on this device</small></div><button class="btn pink" id="tReset">Reset</button></div>
-        <div class="sec">Cat Sushi Conveyor Tycoon · v${CST.CONFIG.VERSION}.0</div>`;
+        <div class="sec">Meow Hotpot Conveyor · v${CST.CONFIG.VERSION}.0</div>`;
       $('tSound').onclick = () => { S.sound = !S.sound; CST.Audio.on = S.sound; g.save(); this.refreshPanel(); };
       $('tVib').onclick = () => { S.vib = !S.vib; g.save(); this.refreshPanel(); };
       $('tAuto').onclick = () => { this.app.setAutoplay(!this.app.autoplay); this.refreshPanel(); };
@@ -193,7 +193,7 @@
     complete() {
       const g = this.g;
       $('modalCard').innerHTML = `<img src="${CST.Assets.iconURL('staff_manager', 160)}" alt=""><h2>Grand Opening Complete!</h2>
-        <p>Your sushi restaurant is the talk of the town.<br>Customers served: ${g.stat('paid')} · Stars: ${g.S.stars}<br>Play time: ${Math.round(g.stat('playTime') / 60)} min</p>
+        <p>Your hotpot restaurant is the talk of the town.<br>Customers served: ${g.stat('paid')} · Stars: ${g.S.stars}<br>Play time: ${Math.round(g.stat('playTime') / 60)} min</p>
         <button class="big" id="mClose">Keep playing</button>`;
       $('modal').classList.remove('hidden'); $('mClose').onclick = () => $('modal').classList.add('hidden');
       CST.Audio.play('task');
