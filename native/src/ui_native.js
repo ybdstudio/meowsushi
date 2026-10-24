@@ -303,13 +303,16 @@
     closePopup() { this.pop = null; }
     itemH(it, iw) {
       if (it.t === 'step') return 34; if (it.t === 'btn') return 58; if (it.t === 'link') return 30; if (it.t === 'side') return 84;
-      if (it.t === 'img') { const im = ART.img[it.art]; return im ? iw * im.height / im.width + 6 : 100; }
+      if (it.t === 'img') { const im = ART.img[it.art]; return im ? iw * (this.popImgScale || 1) * im.height / im.width + 6 : 100; }
       if (it.t === 'cap' || it.t === 'note') return this.wrap(it.text, it.t === 'cap' ? 16 : 12, iw).length * (it.t === 'cap' ? 21 : 16) + 6;
       return 20;
     }
     drawPopup() {
       const c = this.ctx, W = this.W, H = this.H, p = this.pop, w = Math.min(W - 40, 360), iw = w - 28;
       c.fillStyle = 'rgba(40,20,15,.6)'; c.fillRect(0, 0, W, H); this.hit(0, 0, W, H, () => { });
+      this.popImgScale = 1;                                                       // tall popups (Entry Reward) shrink their pictures to fit the screen
+      const imgH = p.items.reduce((a, it) => a + (it.t === 'img' ? this.itemH(it, iw) - 6 : 0), 0), allH = p.items.reduce((a, it) => a + this.itemH(it, iw) + 8, 0) + 72, room = H - this.S.top - 44;
+      if (allH > room && imgH > 0) this.popImgScale = Math.max(0.3, 1 - (allH - room) / imgH);
       const bodyH = p.items.reduce((a, it) => a + this.itemH(it, iw) + 8, 0) + 12, h = 60 + bodyH, x = (W - w) / 2, y = Math.max(this.S.top + 24, (H - h) / 2);
       this.card(x, y, w, h, 22, '#fff8ee', BROWN, 6);
       c.save(); this.rr(x, y, w, h, 22); c.clip(); c.fillStyle = this.grad(y, y + 58, '#ff9fb0', '#f2788f'); c.fillRect(x, y, w, 58); c.fillStyle = '#c95a72'; c.fillRect(x, y + 57, w, 3); c.restore();
@@ -326,8 +329,10 @@
         else if (it.t === 'link') { this.text(it.text, cx, yy + 15, 14, '#a8683f', 'bold', 'center'); this.hit(cx - 80, yy, 160, 30, it.fn); }
         else if (it.t === 'cap' || it.t === 'note') { const sz = it.t === 'cap' ? 16 : 12; this.wrap(it.text, sz, iw).forEach((l, k) => this.text(l, cx, yy + 11 + k * (sz + 5), sz, it.color || (it.t === 'cap' ? DARK : '#a8683f'), 'bold', 'center')); }
         else if (it.t === 'img') {
-          const im = ART.img[it.art]; if (im) { c.save(); this.rr(ix, yy, iw, ih - 6, 14); c.clip(); c.drawImage(im, ix, yy, iw, ih - 6); c.restore(); this.rr(ix, yy, iw, ih - 6, 14); c.lineWidth = 2; c.strokeStyle = '#f0d58a'; c.stroke(); }
-          if (it.amount) { const s = it.amount; c.font = F('bold', 24); const bw = c.measureText(s).width + 50, bh = 38, bxx = it.right ? ix + iw - bw - 10 : cx - bw / 2, byy2 = yy + ih - 6 - bh - 8;
+          const im = ART.img[it.art], dw = iw * (this.popImgScale || 1), dx = cx - dw / 2;
+          if (im) { c.save(); this.rr(dx, yy, dw, ih - 6, 14); c.clip(); c.drawImage(im, dx, yy, dw, ih - 6); c.restore(); if (!it.plain) { this.rr(dx, yy, dw, ih - 6, 14); c.lineWidth = 2; c.strokeStyle = '#f0d58a'; c.stroke(); } }
+          if (it.amount && it.big) { const sz = Math.min(44, (ih - 6) * 0.3); this.text(it.amount, cx, yy + (ih - 6) * 0.8, sz, '#fff', 'bold', 'center', [DARK, Math.max(5, sz * 0.2)]); }
+          else if (it.amount) { const s = it.amount; c.font = F('bold', 24); const bw = c.measureText(s).width + 50, bh = 38, bxx = it.right ? ix + iw - bw - 10 : cx - bw / 2, byy2 = yy + ih - 6 - bh - 8;
             this.card(bxx, byy2, bw, bh, 19, this.grad(byy2, byy2 + bh, '#8a4a24', '#5a2c14'), '#ffd658', 3); this.coin(bxx + 20, byy2 + bh / 2, 11); this.text(s, bxx + 36, byy2 + bh / 2 + 1, 24, '#fff'); }
         }
         else if (it.t === 'side') {

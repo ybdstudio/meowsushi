@@ -34,40 +34,51 @@
   };
 
   const coinsItem = n => ({ t: 'img', art: 'launch_coins', amount: '+' + fmt(n) });
-  const steps = (go, step2, n, claimable, note, onGo, onClaim, claimedLabel) => [
-    { t: 'step', n: 1, text: 'Tap the button below.' }, { t: 'btn', label: go, style: 'yellow', fn: onGo },
-    { t: 'step', n: 2, text: step2.text }, step2.item,
-    { t: 'step', n: 3, text: 'Claim rewards.' }, coinsItem(n), { t: 'note', text: note },
-    { t: 'btn', label: claimedLabel || 'Claim', style: claimable ? 'green' : 'off', fn: claimable ? onClaim : null }];
+  const bigCoins = n => ({ t: 'img', art: 'launch_coins', amount: 'x' + fmt(n), big: true, plain: true });
+  const step = (n, text) => ({ t: 'step', n, text });
+  const pic = art => ({ t: 'img', art, plain: true });
+  // bottom button: Claim when TikTok says the reward is ready, 'Claimed ✓' once taken, otherwise Go (starts the mission)
+  const claimBtn = (claimable, done, onClaim, onGo) => done ? { t: 'btn', label: 'Claimed ✓', style: 'off', fn: null }
+    : claimable ? { t: 'btn', label: 'Claim', style: 'yellow', fn: onClaim } : { t: 'btn', label: 'Go', style: 'yellow', fn: onGo };
 
+  // ---- Launch Reward (add to home screen, one time)
   M.popAdd = function () {
     const m = this.st(), C = CST.CONFIG.MINIS, n = this.amount(C.addMinutes), o = TT();
+    const go = () => { if (can(o, 'addShortcut')) o.addShortcut({ success: () => { m.added = true; this.g.save(); check(); }, fail: () => this.app.ui.toast('Could not add the shortcut', 'c_fx_heart') }); else { m.added = true; this.g.save(); show(true); } };
+    const claim = () => { m.addClaimed = true; this.closePop(); this.grant(n, C.addStars, 'Home screen reward'); try { o && o.reportMissionRewardGranted && o.reportMissionRewardGranted({ type: 'shortcut' }); } catch (e) { } };
     const show = ok => {
-      const done = !!m.addClaimed;
-      this.app.ui.popup({ title: 'Launch Reward', hdr: 'hdr_mega', items: steps(m.added ? 'Added ✓' : 'Add to Home Screen',
-        { text: 'Open Meow Hotpot Conveyor from the icon on your home screen.', item: { t: 'img', art: 'launch_phone' } }, n, ok && !done,
-        done ? 'Thanks for adding Meow Hotpot Conveyor!' : ok ? 'Thanks for adding Meow Hotpot Conveyor!' : 'Open the game from your home screen to claim.',
-        () => { if (can(o, 'addShortcut')) o.addShortcut({ success: () => { m.added = true; this.g.save(); check(); }, fail: () => this.app.ui.toast('Could not add the shortcut', 'c_fx_heart') }); else { m.added = true; this.g.save(); show(true); } },
-        () => { m.addClaimed = true; this.closePop(); this.grant(n, C.addStars, 'Home screen reward'); try { o && o.reportMissionRewardGranted && o.reportMissionRewardGranted({ type: 'shortcut' }); } catch (e) { } },
-        done ? 'Claimed ✓' : 'Claim').concat([{ t: 'note', text: `+${C.addStars}★ bonus`, color: '#b8650f' }]) });
+      const done = !!m.addClaimed, claimable = ok && !done;
+      this.app.ui.popup({ title: 'Launch Reward', hdr: 'hdr_mega', items: [
+        step(1, 'Click the button below.'), { t: 'btn', label: m.added ? 'Added ✓' : 'Go', style: m.added ? 'off' : 'yellow', fn: m.added ? null : go },
+        step(2, 'Enter the game from the home screen icon.'), pic('launch_phone'),
+        step(3, 'Claim rewards.'), bigCoins(n),
+        { t: 'note', text: done ? 'Thanks for adding Meow Hotpot!' : `Enter game from home screen to claim rewards. +${C.addStars}★ bonus` },
+        claimBtn(claimable, done, claim, go)] });
     };
     const check = () => { if (can(o, 'getShortcutMissionReward')) o.getShortcutMissionReward({ success: r => show(!!(r && r.canReceiveReward)), fail: () => show(!!m.added) }); else show(!!m.added); };
     check();
   };
+  // ---- Entry Reward (reopen from the TikTok profile sidebar, once a day)
   M.popRevisit = function () {
     const m = this.st(), n = this.amount(CST.CONFIG.MINIS.revisitMinutes), done = m.revisitDay === today(), o = TT();
-    const show = ok => this.app.ui.popup({ title: 'Entry Reward', hdr: 'hdr_mega', items: steps('Go', { text: 'Come back to Meow Hotpot Conveyor from your TikTok profile.', item: { t: 'side' } }, n, ok && !done,
-      done ? 'Come back tomorrow for another gift.' : 'Reopen the game from your profile to claim.',
-      () => { if (can(o, 'startEntranceMission')) o.startEntranceMission({ complete: () => { } }); else { m.visited = today(); this.g.save(); show(true); } },
-      () => { m.revisitDay = today(); this.closePop(); this.grant(n, 0, 'Revisit gift'); try { o && o.reportMissionRewardGranted && o.reportMissionRewardGranted({ type: 'revisit' }); } catch (e) { } }) });
+    const go = () => { if (can(o, 'startEntranceMission')) o.startEntranceMission({ complete: () => { } }); else { m.visited = today(); this.g.save(); show(true); } };
+    const claim = () => { m.revisitDay = today(); this.closePop(); this.grant(n, 0, 'Revisit gift'); try { o && o.reportMissionRewardGranted && o.reportMissionRewardGranted({ type: 'revisit' }); } catch (e) { } };
+    const show = ok => this.app.ui.popup({ title: 'Entry Reward', hdr: 'hdr_gift', items: [
+      step(1, 'Click profile.'), pic('rev_profile'),
+      step(2, 'Click Meow Hotpot in profile.'), pic('rev_menu'),
+      step(3, 'Open Meow Hotpot.'), pic('rev_open'),
+      step(4, 'Claim reward.'), bigCoins(n),
+      { t: 'note', text: done ? 'Come back tomorrow for another gift.' : 'Enter game from sidebar to claim rewards.' },
+      claimBtn(ok && !done, done, claim, go)] });
     const q = can(o, 'getEntranceMissionReward') ? 'getEntranceMissionReward' : can(o, 'getRevisitMissionReward') ? 'getRevisitMissionReward' : null;
     if (q) o[q]({ success: r => show(!!(r && r.canReceiveReward)), fail: () => show(false) }); else show(m.visited === today());
   };
+  // ---- Share Game (once a day, paid after a successful share)
   M.popShare = function () {
     const m = this.st(), n = this.amount(CST.CONFIG.MINIS.shareMinutes), done = m.shareDay === today();
-    this.app.ui.popup({ title: 'Share Rewards', hdr: 'hdr_share', items: [{ t: 'img', art: 'share_art', amount: '+' + fmt(n), right: true },
-      { t: 'cap', text: done ? 'Shared today – come back tomorrow!' : 'Send Meow Hotpot Conveyor to a friend to get free coins!' },
-      { t: 'btn', label: '⇪  Share', style: done ? 'off' : 'green', fn: done ? null : () => this.doShare(false, n) }] });
+    this.app.ui.popup({ title: 'Share Game', hdr: 'hdr_mega', items: [pic('share_art'),
+      { t: 'cap', text: done ? 'Shared today – come back tomorrow!' : 'Share the game to get rewards!' }, bigCoins(n),
+      { t: 'btn', label: done ? 'Shared ✓' : '⇪  Share', style: done ? 'off' : 'yellow', fn: done ? null : () => this.doShare(false, n) }] });
   };
   M.popCoins = function (refresh) {
     const A = CST.Ads, C = CST.CONFIG.ADS, n = this.amount(C.coinsMinutes);
