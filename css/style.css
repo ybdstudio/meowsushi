@@ -242,3 +242,10 @@ html,body{margin:0;height:100%;background:#2b1d18;overflow:hidden;font-family:va
 .ad-chip .tico svg{width:16px;height:16px}
 #hud-top .plus.adready{position:relative;animation:chipPulse 1.2s ease-in-out infinite}
 #hud-top .plus.adready::after{content:'▶';position:absolute;right:-7px;top:-7px;width:15px;height:15px;border-radius:50%;background:#ffcf3d;border:2px solid #6b3a22;color:#6b3a22;font:900 7px/11px var(--font);text-align:center}
+
+/* auto play + speed (HUD, right of the phase chip) */
+.auto-ctl{margin-left:auto;display:flex;gap:6px;pointer-events:auto}
+.autob{font:900 12px var(--font);color:#fff;background:linear-gradient(#a98a74,#7d6250);border:2.5px solid #4a2614;border-radius:10px;padding:4px 9px;box-shadow:0 3px 0 #4a2614;text-shadow:0 1px 0 #4a2614;cursor:pointer}
+.autob:active{transform:translateY(2px);box-shadow:0 1px 0 #4a2614}
+.autob.on{background:linear-gradient(#ff8a5c,#d8432f)}
+.autob.spd{background:linear-gradient(#ffd45a,#f0a020);color:#4a2614;text-shadow:none;min-width:36px}

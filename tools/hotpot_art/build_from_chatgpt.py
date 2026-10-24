@@ -34,14 +34,61 @@ def fit(sp, w, h):
     sp = sp.resize((max(1, round(sp.width * k)), max(1, round(sp.height * k))), Image.LANCZOS)
     out = Image.new('RGBA', (w, h)); out.alpha_composite(sp, ((w - sp.width) // 2, h - sp.height)); return out
 
+# Animated groups: every frame of a group gets ONE common scale and a common anchor, otherwise the
+# animation jumps in size/position (each ChatGPT frame has its own tight bbox).
+#  - chef overlays: placed inside the area the ORIGINAL chef occupied in its frame (the rest of the frame is
+#    empty on purpose so the cat lines up with the counter), anchored on the chef-hat centre (top).
+#  - counter states: common scale (largest frame fits), anchored bottom-centre.
+GROUPS = {
+    'chefst_salmon_': ('chef', 4), 'chefst_tuna_': ('chef', 4),
+    'st3_salmon_': ('counter', 4), 'st3_tuna_': ('counter', 4), 'st4_maki_': ('counter', 4), 'st4_ikura_': ('counter', 4),
+}
+BLACK_BG = ('8eaed88b',)   # sheets that came on a black background: shave the dark fringe
+
+def load(split, name):
+    im = Image.open(f'{split}/{name}.png').convert('RGBA')
+    if name.startswith(BLACK_BG):
+        from PIL import ImageFilter
+        a = im.getchannel('A').filter(ImageFilter.MinFilter(3)); im.putalpha(a)
+    return im.crop(im.getbbox())
+
+def hat_cx(sp):   # x centre of the opaque pixels in the top 18 % (chef hat): stable across frames
+    import numpy as np
+    a = np.array(sp.getchannel('A'))[: max(1, int(sp.height * 0.18))] > 100
+    xs = np.where(a.any(axis=0))[0]; return (xs[0] + xs[-1]) / 2 if len(xs) else sp.width / 2
+
+def fit_group(kind, frames, rects, orig_boxes):
+    outs = []
+    if kind == 'chef':
+        # target: union of the original chef bboxes (frame-local), scale by height of the tallest new frame
+        ux0 = min(b[0] for b in orig_boxes); uy0 = min(b[1] for b in orig_boxes); ux1 = max(b[2] for b in orig_boxes); uy1 = max(b[3] for b in orig_boxes)
+        k = (uy1 - uy0) / max(f.height for f in frames); cx = (ux0 + ux1) / 2
+        for f, (w, h) in zip(frames, rects):
+            g = f.resize((max(1, round(f.width * k)), max(1, round(f.height * k))), Image.LANCZOS)
+            out = Image.new('RGBA', (w, h)); out.alpha_composite(g, (int(round(cx - hat_cx(f) * k)), uy0)); outs.append(out)
+    else:
+        w, h = rects[0]; k = min(min(w / f.width, h / f.height) for f in frames)
+        for f in frames:
+            g = f.resize((max(1, round(f.width * k)), max(1, round(f.height * k))), Image.LANCZOS)
+            out = Image.new('RGBA', (w, h)); out.alpha_composite(g, ((w - g.width) // 2, h - g.height)); outs.append(out)
+    return outs
+
 if __name__ == '__main__':
     split, src, man, dst = sys.argv[1:5]
     fr = json.load(open(man))['atlases']['props']['frames']
     for k, base in EXTRA_FRAMES.items(): fr.setdefault(k, fr[base])
     atlas = Image.open(src).convert('RGBA')
+    done = set()
+    for pre, (kind, n) in GROUPS.items():
+        keys = [pre + str(i) for i in range(n)]
+        rects = [tuple(fr[k][2:4]) for k in keys]
+        orig_boxes = [atlas.crop((fr[k][0], fr[k][1], fr[k][0] + fr[k][2], fr[k][1] + fr[k][3])).getbbox() for k in keys]
+        for k, im in zip(keys, fit_group(kind, [load(split, S[k]) for k in keys], rects, orig_boxes)):
+            x, y, w, h = fr[k][:4]; atlas.paste(Image.new('RGBA', (w, h)), (x, y)); atlas.alpha_composite(im, (x, y)); done.add(k)
     for key, name in S.items():
+        if key in done: continue
         x, y, w, h = fr[key][:4]
         atlas.paste(Image.new('RGBA', (w, h)), (x, y))
-        atlas.alpha_composite(fit(Image.open(f'{split}/{name}.png').convert('RGBA'), w, h), (x, y))
+        atlas.alpha_composite(fit(load(split, name), w, h), (x, y))
     atlas.save(dst, 'WEBP', quality=90, method=6)
     print('wrote', dst, len(S), 'frames')

@@ -18,6 +18,15 @@
       this.g = game; this.r = renderer; this.app = app; this.panel = null; this.t = 0;
       document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => { CST.Audio.unlock(); CST.Audio.play('pop'); this.open(b.dataset.panel); }));
       $('sheetClose').addEventListener('click', () => this.close());
+      // AUTO: the bot plays; while it plays the speed button cycles x1 -> x2 -> x3 (back to x1 when AUTO goes off)
+      const syncAuto = () => {
+        const on = !!this.app.autoplay; $('autoBtn').classList.toggle('on', on); $('autoBtn').setAttribute('aria-pressed', on);
+        $('spdBtn').classList.toggle('hidden', !on); $('spdBtn').textContent = 'x' + this.app.speed;
+      };
+      this.syncAuto = syncAuto;
+      $('autoBtn').addEventListener('click', e => { e.stopPropagation(); const on = !this.app.autoplay; this.app.setAutoplay(on); if (!on) this.app.speed = 1; syncAuto(); });
+      $('spdBtn').addEventListener('click', e => { e.stopPropagation(); this.app.speed = this.app.speed >= 3 ? 1 : this.app.speed + 1; syncAuto(); });
+      syncAuto();
       $('sheet').addEventListener('pointerdown', e => { if (e.target.id === 'sheet') this.close(); });
       $('task').addEventListener('click', () => this.open('tasks'));
       this.bindGame(game);
@@ -176,7 +185,7 @@
         <div class="sec">Meow Hotpot Conveyor · v${CST.CONFIG.VERSION}.0</div>`;
       $('tSound').onclick = () => { S.sound = !S.sound; CST.Audio.on = S.sound; g.save(); this.refreshPanel(); };
       $('tVib').onclick = () => { S.vib = !S.vib; g.save(); this.refreshPanel(); };
-      $('tAuto').onclick = () => { this.app.setAutoplay(!this.app.autoplay); this.refreshPanel(); };
+      $('tAuto').onclick = () => { this.app.setAutoplay(!this.app.autoplay); if (!this.app.autoplay) this.app.speed = 1; this.syncAuto && this.syncAuto(); this.refreshPanel(); };
       $('tSave').onclick = () => { g.save(); this.toast('Saved!', 'c_fx_heart'); };
       $('tReset').onclick = () => this.confirmReset();
     }

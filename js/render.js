@@ -26,9 +26,9 @@
     lantern_r: 24, lantern_w: 24, lantern_p: 24, banner: 34, plant1: 40, plant2: 42, bamboo: 34, chalkboard: 38, maneki: 30, sakura_tree: 130, koi: 76,
     gate: 120, sakura_pot: 46, bonsai: 46, stall: 104, bench_red: 60, table_long: 78, stool: 26, stool_round: 30 };
   const FLOOR = {
-    tile:   ['#f6e3c8', '#ecd2ae'],
-    wood:   ['#dba26a', '#cf935b'],
-    stone:  ['#d9d6d2', '#cac5bf'],
+    tile:   ['#f4e2c6', '#e2b98f'],    // kitchen: cream / terracotta tiles
+    wood:   ['#b5643f', '#a35636'],    // dining: red-brown rosewood planks
+    stone:  ['#d6d2cc', '#c5bfb6'],    // entrance: grey stone + red runner
     rug:    ['#c8454f', '#b93c47'],
     tatami: ['#d65a46', '#c64c3b']   // hotpot hall: warm red carpet (was tatami straw)
   };
@@ -95,15 +95,40 @@
       const ctx = this.ctx, [a, b] = FLOOR[z.floor] || FLOOR.wood;
       ctx.fillStyle = a; ctx.fillRect(z.x, z.y, z.w, z.h);
       ctx.save(); ctx.beginPath(); ctx.rect(z.x, z.y, z.w, z.h); ctx.clip();
-      if (z.floor === 'tile' || z.floor === 'stone') {
+      if (z.floor === 'tile') {
+        // kitchen: cream / terracotta checker with small red diamonds at the tile corners
         const s = 40; ctx.fillStyle = b;
         for (let x = z.x; x < z.x + z.w; x += s) for (let y = z.y; y < z.y + z.h; y += s) if ((Math.round(x / s) + Math.round(y / s)) % 2 === 0) ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = '#c9433a';
+        for (let x = z.x + s; x < z.x + z.w; x += s * 2) for (let y = z.y + s; y < z.y + z.h; y += s * 2) { ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 6); ctx.lineTo(x - 6, y); ctx.closePath(); ctx.fill(); }
+      } else if (z.floor === 'stone') {
+        // entrance: grey stone slabs, red runner with gold edges from the door
+        const s = 40; ctx.fillStyle = b;
+        for (let x = z.x; x < z.x + z.w; x += s) for (let y = z.y; y < z.y + z.h; y += s) if ((Math.round(x / s) + Math.round(y / s)) % 2 === 0) ctx.fillRect(x, y, s, s);
+        ctx.strokeStyle = 'rgba(120,110,100,.35)'; ctx.lineWidth = 1.5;
+        for (let x = z.x; x < z.x + z.w; x += s) for (let y = z.y; y < z.y + z.h; y += s) ctx.strokeRect(x, y, s, s);
+        const d = this.g.C.LAYOUT.door, rx = d.x - 26;
+        ctx.fillStyle = '#a8262c'; ctx.fillRect(rx, z.y, 52, z.h); ctx.fillStyle = '#e2a83a'; ctx.fillRect(rx + 3, z.y, 3, z.h); ctx.fillRect(rx + 46, z.y, 3, z.h);
+        ctx.fillStyle = 'rgba(226,168,58,.55)'; for (let y = z.y + 20; y < z.y + z.h; y += 40) { ctx.beginPath(); ctx.arc(d.x, y, 6, 0, Math.PI * 2); ctx.fill(); }
       } else if (z.floor === 'wood') {
+        // dining: rosewood planks, dark seams, faint grain
         ctx.fillStyle = b;
+        for (let y = z.y, r = 0; y < z.y + z.h; y += 22, r++) { if (r % 2) ctx.fillRect(z.x, y, z.w, 20); }
+        ctx.fillStyle = '#7d3a26';
         for (let y = z.y, r = 0; y < z.y + z.h; y += 22, r++) { ctx.fillRect(z.x, y + 20, z.w, 2); for (let x = z.x + (r % 2) * 50; x < z.x + z.w; x += 100) ctx.fillRect(x, y, 2, 22); }
+        ctx.fillStyle = 'rgba(255,220,180,.10)'; for (let y = z.y + 6; y < z.y + z.h; y += 22) ctx.fillRect(z.x, y, z.w, 2);
       } else if (z.floor === 'tatami') {
-        ctx.strokeStyle = '#e8b14a'; ctx.lineWidth = 4;   // gold carpet seams
-        for (let x = z.x; x < z.x + z.w; x += 90) for (let y = z.y; y < z.y + z.h; y += 45) ctx.strokeRect(x + 2, y + 2, 86, 41);
+        // Hotpot Hall: red carpet, gold fret (回) border, round gold medallions
+        const x0 = z.x + 8, y0 = z.y + 8, w = z.w - 16, hh = z.h - 16;
+        ctx.fillStyle = '#7a1c22'; ctx.fillRect(x0 - 2, y0 - 2, w + 4, hh + 4);
+        ctx.fillStyle = a; ctx.fillRect(x0, y0, w, hh);
+        ctx.strokeStyle = '#e8b14a'; ctx.lineWidth = 3; ctx.strokeRect(x0 + 8, y0 + 8, w - 16, hh - 16); ctx.lineWidth = 1.5; ctx.strokeRect(x0 + 14, y0 + 14, w - 28, hh - 28);
+        ctx.lineWidth = 2; for (let x = x0 + 22; x < x0 + w - 30; x += 24) { for (const yy of [y0 + 4, y0 + hh - 12]) { ctx.strokeRect(x, yy, 8, 8); ctx.strokeRect(x + 2.5, yy + 2.5, 3, 3); } }
+        for (let x = x0 + 40; x < x0 + w - 20; x += 64) for (let y = y0 + 44; y < y0 + hh - 30; y += 64) {
+          ctx.strokeStyle = '#e8b14a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = 'rgba(232,177,74,.85)'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+          for (let k = 0; k < 4; k++) { const an = k * Math.PI / 2 + Math.PI / 4; ctx.beginPath(); ctx.arc(x + Math.cos(an) * 10, y + Math.sin(an) * 10, 2.2, 0, Math.PI * 2); ctx.fill(); }
+        }
       } else if (z.floor === 'rug') {
         // VIP rug (vector, after the rug sprite's design so it stays sharp at any size): red field, gold double border, corner frets
         const x0 = z.x + 10, y0 = z.y + 10, w = z.w - 20, hh = z.h - 20;
@@ -198,8 +223,8 @@
       const ctx = this.ctx, g = this.g, conv = g.conv;
       for (const id in conv.belts) {
         const b = conv.belts[id], R = b.R;
-        this.isoT(14); this.stadium(b, R + 16); ctx.fillStyle = '#6e4224'; ctx.fill();
-        this.isoT(); this.stadium(b, R + 16); ctx.fillStyle = '#c98b47'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#7b4a22'; ctx.stroke();
+        this.isoT(14); this.stadium(b, R + 16); ctx.fillStyle = '#5a1f16'; ctx.fill();
+        this.isoT(); this.stadium(b, R + 16); ctx.fillStyle = '#a8322a'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#4a1a12'; ctx.stroke();   // red lacquer
         this.stadium(b, R + 12); ctx.fillStyle = '#e7b24c'; ctx.fill();
         this.stadium(b, R + 10); ctx.fillStyle = '#45414a'; ctx.fill();
         this.stadium(b, R); ctx.lineWidth = 18; ctx.setLineDash([3, 9]); ctx.lineDashOffset = -conv.offset; ctx.strokeStyle = '#5d5964'; ctx.stroke(); ctx.setLineDash([]);
@@ -208,14 +233,14 @@
       }
       for (const id in conv.belts) {          // built-in bar counter on the dining side (customers eat here)
         const b = conv.belts[id], R = b.R, cx0 = b.x0 - R - 14, cw = b.Ls + 2 * R + 28, cy0 = b.cy + R + 16, ch = CT.w, up = CT.up;
-        ctx.fillStyle = '#7a4626'; for (let dy = 16; dy > -up; dy -= 1.5) { this.isoT(dy); ctx.fillRect(cx0, cy0, cw, ch); }   // solid counter body, top raised above the belt
-        this.isoT(-up); ctx.fillStyle = '#e2ad6e'; ctx.fillRect(cx0, cy0, cw, ch);
-        ctx.fillStyle = '#cf955a'; for (let x = cx0 + 22; x < cx0 + cw; x += 22) ctx.fillRect(x, cy0, 1.5, ch);
-        ctx.strokeStyle = '#7b4a22'; ctx.lineWidth = 2; ctx.strokeRect(cx0, cy0, cw, ch);
-        ctx.fillStyle = '#f6d39c'; ctx.fillRect(cx0, cy0 + ch - 4, cw, 4); ctx.fillStyle = '#b97a42'; ctx.fillRect(cx0, cy0, cw, 3);
+        ctx.fillStyle = '#5e1f18'; for (let dy = 16; dy > -up; dy -= 1.5) { this.isoT(dy); ctx.fillRect(cx0, cy0, cw, ch); }   // solid counter body, top raised above the belt
+        this.isoT(-up); ctx.fillStyle = '#b8392e'; ctx.fillRect(cx0, cy0, cw, ch);
+        ctx.fillStyle = '#a2302a'; for (let x = cx0 + 22; x < cx0 + cw; x += 22) ctx.fillRect(x, cy0, 1.5, ch);
+        ctx.strokeStyle = '#4a1a12'; ctx.lineWidth = 2; ctx.strokeRect(cx0, cy0, cw, ch);
+        ctx.fillStyle = '#e2a83a'; ctx.fillRect(cx0, cy0 + ch - 4, cw, 4); ctx.fillRect(cx0, cy0, cw, 3);   // gold trim
       }
       const Ld = g.C.LAYOUT.belt.loader; this.isoT();
-      ctx.fillStyle = '#8a5a34'; ctx.fillRect(Ld.x - 22, Ld.y - 9, 44, 18); ctx.fillStyle = '#b77a44'; ctx.fillRect(Ld.x - 19, Ld.y - 6, 38, 12);
+      ctx.fillStyle = '#5a1f16'; ctx.fillRect(Ld.x - 22, Ld.y - 9, 44, 18); ctx.fillStyle = '#e2a83a'; ctx.fillRect(Ld.x - 19, Ld.y - 6, 38, 12); ctx.fillStyle = '#b8392e'; ctx.fillRect(Ld.x - 15, Ld.y - 3, 30, 6);
       const P = g.player;
       if (P.hold && P.hold.kind === 'sushi' && Math.hypot(P.x - Ld.x, P.y - Ld.y) < 120) {
         ctx.strokeStyle = `rgba(255,240,140,${0.55 + 0.4 * Math.sin(this.t * 6)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(Ld.x, Ld.y, 30, 0, Math.PI * 2); ctx.stroke();
