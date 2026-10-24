@@ -1,0 +1,221 @@
+{
+ "01_beef_counter": {
+  "keys": [
+   "st_salmon",
+   "st3_salmon_0",
+   "st3_salmon_1",
+   "st3_salmon_2",
+   "st3_salmon_3"
+  ],
+  "panel": [
+   238,
+   154
+  ],
+  "size": [
+   1350,
+   154
+  ]
+ },
+ "02_beef_chef": {
+  "keys": [
+   "chefst_salmon_0",
+   "chefst_salmon_1",
+   "chefst_salmon_2",
+   "chefst_salmon_3"
+  ],
+  "panel": [
+   217,
+   191
+  ],
+  "size": [
+   988,
+   191
+  ]
+ },
+ "03_shrimp_counter": {
+  "keys": [
+   "st_tuna",
+   "st3_tuna_0",
+   "st3_tuna_1",
+   "st3_tuna_2",
+   "st3_tuna_3"
+  ],
+  "panel": [
+   240,
+   152
+  ],
+  "size": [
+   1360,
+   152
+  ]
+ },
+ "04_shrimp_chef": {
+  "keys": [
+   "chefst_tuna_0",
+   "chefst_tuna_1",
+   "chefst_tuna_2",
+   "chefst_tuna_3"
+  ],
+  "panel": [
+   217,
+   191
+  ],
+  "size": [
+   988,
+   191
+  ]
+ },
+ "05_veggie_station": {
+  "keys": [
+   "st_maki",
+   "st4_maki_0",
+   "st4_maki_1",
+   "st4_maki_2",
+   "st4_maki_3"
+  ],
+  "panel": [
+   356,
+   310
+  ],
+  "size": [
+   1940,
+   310
+  ]
+ },
+ "06_wagyu_station": {
+  "keys": [
+   "st_premium",
+   "st4_ikura_0",
+   "st4_ikura_1",
+   "st4_ikura_2",
+   "st4_ikura_3"
+  ],
+  "panel": [
+   364,
+   318
+  ],
+  "size": [
+   1980,
+   318
+  ]
+ },
+ "07_broth_station": {
+  "keys": [
+   "st_rice"
+  ],
+  "panel": [
+   246,
+   196
+  ],
+  "size": [
+   492,
+   392
+  ]
+ },
+ "08_drink_station": {
+  "keys": [
+   "st_drink",
+   "st5_drink"
+  ],
+  "panel": [
+   324,
+   306
+  ],
+  "size": [
+   1376,
+   612
+  ]
+ },
+ "09_dessert_station": {
+  "keys": [
+   "st_dessert",
+   "st5_dessert"
+  ],
+  "panel": [
+   324,
+   330
+  ],
+  "size": [
+   1376,
+   660
+  ]
+ },
+ "10_cold_storage": {
+  "keys": [
+   "st_storage"
+  ],
+  "panel": [
+   246,
+   208
+  ],
+  "size": [
+   492,
+   416
+  ]
+ },
+ "11_dishes": {
+  "keys": [
+   "f_salmon",
+   "f_tuna",
+   "f_maki",
+   "f_premium",
+   "dr_matcha",
+   "d_mochi"
+  ],
+  "panel": [
+   128,
+   136
+  ],
+  "size": [
+   968,
+   136
+  ]
+ },
+ "12_ingredients": {
+  "keys": [
+   "c_ing_salmon",
+   "c_ing_tuna",
+   "c_ing_cucumber"
+  ],
+  "panel": [
+   222,
+   160
+  ],
+  "size": [
+   1492,
+   320
+  ]
+ },
+ "13_crates": {
+  "keys": [
+   "c_box_salmon",
+   "c_box_fish",
+   "c_box_veg",
+   "c_box_rice"
+  ],
+  "panel": [
+   246,
+   230
+  ],
+  "size": [
+   1104,
+   230
+  ]
+ },
+ "15_decor": {
+  "keys": [
+   "gate",
+   "sakura_tree",
+   "koi",
+   "floor_tatami"
+  ],
+  "panel": [
+   190,
+   174
+  ],
+  "size": [
+   1760,
+   348
+  ]
+ }
+}
