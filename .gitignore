@@ -1,0 +1,6 @@
+dist/
+tests/out/
+tests/out_native/
+node_modules/
+__pycache__/
+*.zip

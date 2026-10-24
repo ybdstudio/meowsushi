@@ -1,0 +1,627 @@
+/* Isometric canvas renderer (Cat Pizza Tycoon camera).
+   The game world is a flat grid; it is projected with sx = (x - y)·K, sy = (x + y)·K/2.
+   Floors, the conveyor and build pads are painted with the iso matrix; sprites are drawn upright
+   at their projected foot point and depth-sorted by x + y. */
+(function (root) {
+  const CST = root.CST = root.CST || {};
+  const A = () => CST.Assets;
+  const CHAR_SCALE = 0.47;          // atlas px -> screen units for characters
+  // per-character size match so every cat's head reads the same size as the chef's (source sheets differ)
+  const CHAR_MUL = { server: 0.8, chef: 0.77, cust_orange: 0.74, cust_gray: 0.72, cashier: 0.8, cleaner: 0.8, waiter: 0.8, vip1: 0.86, vip2: 0.8, manager: 0.95 };   // chef atlas is stored at 1.3x for sharpness
+  const FONT = 'ui-rounded, "SF Pro Rounded", Nunito, system-ui, sans-serif';
+  // prop draw widths in screen units
+  const COUNTER_EATERS = { cust_orange: 1, cust_gray: 1 };   // have the 'sit & eat at the conveyor' sheet (cat + own stool, facing the belt)
+  const DINE = { w: 85.33, px: -0.7, py: 24.3, solo: { L: [-3.1, 9.6], R: [-3, 8] }, one: { w: 95.7, dx: -2.4, dy: 23.6 } };   // dining table sprite placement (screen px); pair sprite aligned on the right chair, solo cats on their own chair   // dining table sprite placement (screen px, tuned in-game)
+  const STOOL = { w: 27, dx: 0, dy: 12 };   // empty bar stool (same design as the stool in the counter-eat sprites)
+  const PADCARD = { w: 128, h: 54, icon: 26 };   // build-spot price card: one size for all
+  const ICON_FIT = { c_fx_drop: 1.25 };    // icons whose art fills its frame edge-to-edge get drawn smaller inside bubbles
+  const VIPF = { sw: 58, sx: 0, sy: 12, tw: 30, tx: 30, ty: 16, top: 15, cat: { vip1: [4, -9], vip2: [3, -3] } };   // VIP sofa / side table placement (screen px)
+  const TOP = { L: [-16, -15], R: [0, -21] };   // dining table top, plate spot per chair side (screen px from the table point)
+  const STATION5 = { drink: { key: 'st5_drink', w: 96, dx: 4, dy: 6 }, dessert: { key: 'st5_dessert', w: 96, dx: 4, dy: 6 } };   // open-shelf counters: finished drinks/desserts wait on the lower shelf
+  const STATION4 = { maki: { key: 'st4_maki_', w: 96, dx: 4, dy: 6 }, premium: { key: 'st4_ikura_', w: 96, dx: 4, dy: 6 } };
+  const CT = { w: 32, up: 10 };   // belt bar counter: depth (world) and how far its top sits above the floor (px)
+  const STATION2 = { salmon: 132, tuna: 132 };   // new prep-counter sprite width (world px) for these recipes
+  const PW = { st_salmon: 104, st_tuna: 104, st_rice: 88, st_maki: 104, st_premium: 104, st_dessert: 86, st_drink: 86, st_storage: 62, st_sink: 56,
+    c_box_salmon: 44, c_box_fish: 44, c_box_veg: 44, c_box_rice: 44, cashier: 100, mgr_desk: 70, armchair: 70, armchair2: 70,
+    lantern_r: 24, lantern_w: 24, lantern_p: 24, banner: 34, plant1: 40, plant2: 42, bamboo: 34, chalkboard: 38, maneki: 30, sakura_tree: 130, koi: 76,
+    gate: 120, sakura_pot: 46, bonsai: 46, stall: 104, bench_red: 60, table_long: 78, stool: 26, stool_round: 30 };
+  const FLOOR = {
+    tile:   ['#f6e3c8', '#ecd2ae'],
+    wood:   ['#dba26a', '#cf935b'],
+    stone:  ['#d9d6d2', '#cac5bf'],
+    rug:    ['#c8454f', '#b93c47'],
+    tatami: ['#dcd394', '#cfc583']
+  };
+
+  class Renderer {
+    constructor(canvas, game) {
+      this.cv = canvas; this.ctx = canvas.getContext('2d'); this.g = game; this.t = 0;
+      this.K = game.C.ISO.K; this.cam = { x: 0, y: 0, z: 1 }; this.zoomMul = 1;
+    }
+    P(x, y) { const K = this.K; return { x: (x - y) * K, y: (x + y) * K / 2 }; }
+    resize() {
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+      const r = this.cv.getBoundingClientRect();
+      this.cv.width = Math.round(r.width * dpr); this.cv.height = Math.round(r.height * dpr);
+      this.dpr = dpr; this.cssW = r.width; this.cssH = r.height;
+      this.cam.z = (r.width / this.g.C.VIEW_W) * dpr * (this.zoomMul || 1);
+    }
+    // screen-space vector (joystick) -> world-space vector of the same length
+    screenToWorldDir(sx, sy) {
+      const m = Math.hypot(sx, sy); if (m < 1e-6) return { x: 0, y: 0 };
+      const K = this.K; const x = (sx + 2 * sy) / (2 * K), y = (2 * sy - sx) / (2 * K); const n = Math.hypot(x, y);
+      return { x: x / n * m, y: y / n * m };
+    }
+    w2s(x, y) { const p = this.P(x, y); return { x: (p.x - this.cam.x) * this.cam.z + this.cv.width / 2, y: (p.y - this.cam.y) * this.cam.z + this.cv.height / 2 }; }
+    follow(dt, snap) {
+      const p = this.P(this.g.player.x, this.g.player.y);
+      const k = snap ? 1 : 1 - Math.pow(0.002, dt);
+      this.cam.x += (p.x - this.cam.x) * k; this.cam.y += (p.y - 30 - this.cam.y) * k;
+    }
+    origin() { return { ox: this.cv.width / 2 - this.cam.x * this.cam.z, oy: this.cv.height / 2 - this.cam.y * this.cam.z }; }
+    isoT(dy = 0) { const { ox, oy } = this.origin(), z = this.cam.z, K = this.K; this.ctx.setTransform(z * K, z * K / 2, -z * K, z * K / 2, ox, oy + dy * z); }
+    scrT() { const { ox, oy } = this.origin(), z = this.cam.z; this.ctx.setTransform(z, 0, 0, z, ox, oy); }
+
+    draw(dt) {
+      const ctx = this.ctx; this.t += dt; this.dtLast = dt;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#9fd36b'; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      this.drawGrass(); this.drawFloors(); this.drawWalls(); this.drawBelt(); this.drawPads();
+      this.drawRegisterMat(); this.drawTargetRing(); this.scrT(); this.drawSorted(); this.drawOverlays(); this.drawFx();
+    }
+
+    // ---------------------------------------------------------------- ground
+    drawGrass() {
+      const ctx = this.ctx; this.isoT();
+      ctx.fillStyle = '#93c95f';
+      for (let i = -12; i < 24; i++) for (let j = -12; j < 24; j++) if ((i + j) % 2 === 0) ctx.fillRect(i * 60, j * 60, 60, 60);
+      ctx.fillStyle = 'rgba(70,140,50,0.35)';
+      for (let i = 0; i < 90; i++) { const x = ((i * 137) % 1600) - 500, y = ((i * 251) % 1600) - 500; ctx.fillRect(x, y, 7, 2); }
+    }
+    drawFloors() {
+      const ctx = this.ctx, g = this.g, Z = g.C.LAYOUT.zones;
+      this.isoT(10); ctx.fillStyle = '#8a5a35';                 // floor slab edge
+      for (const k in Z) { const z = Z[k]; if (g.has(z.unlock)) ctx.fillRect(z.x, z.y, z.w, z.h); }
+      this.isoT();
+      for (const k in Z) { const z = Z[k]; if (g.has(z.unlock)) this.paintFloor(z); }
+      for (const k in Z) {                                       // locked: grass with a dashed build outline
+        const z = Z[k]; if (g.has(z.unlock)) continue;
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(z.x + 6, z.y + 6, z.w - 12, z.h - 12);
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3; ctx.setLineDash([12, 9]); ctx.strokeRect(z.x + 8, z.y + 8, z.w - 16, z.h - 16); ctx.setLineDash([]);
+      }
+    }
+    paintFloor(z) {
+      const ctx = this.ctx, [a, b] = FLOOR[z.floor] || FLOOR.wood;
+      ctx.fillStyle = a; ctx.fillRect(z.x, z.y, z.w, z.h);
+      ctx.save(); ctx.beginPath(); ctx.rect(z.x, z.y, z.w, z.h); ctx.clip();
+      if (z.floor === 'tile' || z.floor === 'stone') {
+        const s = 40; ctx.fillStyle = b;
+        for (let x = z.x; x < z.x + z.w; x += s) for (let y = z.y; y < z.y + z.h; y += s) if ((Math.round(x / s) + Math.round(y / s)) % 2 === 0) ctx.fillRect(x, y, s, s);
+      } else if (z.floor === 'wood') {
+        ctx.fillStyle = b;
+        for (let y = z.y, r = 0; y < z.y + z.h; y += 22, r++) { ctx.fillRect(z.x, y + 20, z.w, 2); for (let x = z.x + (r % 2) * 50; x < z.x + z.w; x += 100) ctx.fillRect(x, y, 2, 22); }
+      } else if (z.floor === 'tatami') {
+        ctx.strokeStyle = '#6d8b3a'; ctx.lineWidth = 4;
+        for (let x = z.x; x < z.x + z.w; x += 90) for (let y = z.y; y < z.y + z.h; y += 45) ctx.strokeRect(x + 2, y + 2, 86, 41);
+      } else if (z.floor === 'rug') {
+        // VIP rug (vector, after the rug sprite's design so it stays sharp at any size): red field, gold double border, corner frets
+        const x0 = z.x + 10, y0 = z.y + 10, w = z.w - 20, hh = z.h - 20;
+        ctx.fillStyle = '#7a1c22'; ctx.fillRect(x0 - 2, y0 - 2, w + 4, hh + 4);
+        ctx.fillStyle = '#c3333b'; ctx.fillRect(x0, y0, w, hh);
+        ctx.fillStyle = '#b02b33'; for (let yy = y0 + 6; yy < y0 + hh; yy += 12) ctx.fillRect(x0, yy, w, 1.2);   // subtle weave
+        ctx.strokeStyle = '#f2b84b'; ctx.lineWidth = 3; ctx.strokeRect(x0 + 12, y0 + 12, w - 24, hh - 24);
+        ctx.lineWidth = 1.5; ctx.strokeRect(x0 + 19, y0 + 19, w - 38, hh - 38);
+        const fret = (cx, cy, sx, sy) => { ctx.beginPath(); ctx.moveTo(cx, cy + 16 * sy); ctx.lineTo(cx, cy); ctx.lineTo(cx + 16 * sx, cy); ctx.moveTo(cx + 6 * sx, cy + 10 * sy); ctx.lineTo(cx + 6 * sx, cy + 6 * sy); ctx.lineTo(cx + 10 * sx, cy + 6 * sy); ctx.lineWidth = 2.5; ctx.stroke(); };
+        fret(x0 + 26, y0 + 26, 1, 1); fret(x0 + w - 26, y0 + 26, -1, 1); fret(x0 + 26, y0 + hh - 26, 1, -1); fret(x0 + w - 26, y0 + hh - 26, -1, -1);
+      }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(90,50,25,0.22)'; ctx.lineWidth = 2; ctx.strokeRect(z.x, z.y, z.w, z.h);
+    }
+    drawWalls() {
+      const ctx = this.ctx, C = this.g.C, H = C.LAYOUT.wallH, K = this.K, z = this.cam.z;
+      const { ox, oy } = this.origin();
+      // walls are drawn as vectors so they stay sharp at any zoom / device pixel ratio
+      const wall = (dirx, len) => {   // u runs along the wall (world units), v is screen height
+        ctx.setTransform(z * K * dirx, z * K / 2, 0, z, ox, oy);
+        ctx.fillStyle = '#f7e9cf'; ctx.fillRect(0, -H, len, H);                       // plaster
+        const seg = 64, top = -H + 12, bot = -46;
+        for (let u = 0, i = 0; u < len - 8; u += seg, i++) {
+          const w = Math.min(seg, len - u), x = u + 7, pw = w - 14, ph = bot - top;
+          const kind = (i + (dirx > 0 ? 1 : 0)) % 3;
+          if (kind === 0) {                                                             // shoji screen
+            ctx.fillStyle = '#fffaf0'; ctx.fillRect(x, top, pw, ph);
+            ctx.strokeStyle = '#b5834f'; ctx.lineWidth = 1.6;
+            for (let gx = 1; gx < 4; gx++) { ctx.beginPath(); ctx.moveTo(x + pw * gx / 4, top); ctx.lineTo(x + pw * gx / 4, bot); ctx.stroke(); }
+            for (let gy = 1; gy < 5; gy++) { ctx.beginPath(); ctx.moveTo(x, top + ph * gy / 5); ctx.lineTo(x + pw, top + ph * gy / 5); ctx.stroke(); }
+            ctx.lineWidth = 3; ctx.strokeRect(x, top, pw, ph);
+          } else if (kind === 1) {                                                      // cherry-blossom mural
+            const gr = ctx.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, '#ffd9e3'); gr.addColorStop(1, '#f7b7c8');
+            ctx.fillStyle = gr; ctx.fillRect(x, top, pw, ph);
+            ctx.strokeStyle = '#7a4a2c'; ctx.lineWidth = 2.2; ctx.beginPath();
+            ctx.moveTo(x + 4, bot - 8); ctx.quadraticCurveTo(x + pw * 0.45, top + ph * 0.55, x + pw - 6, top + 12); ctx.moveTo(x + pw * 0.4, top + ph * 0.62); ctx.lineTo(x + pw * 0.25, top + ph * 0.3); ctx.stroke();
+            ctx.fillStyle = '#ff8fb0';
+            for (let k = 0; k < 9; k++) { const px = x + 6 + ((k * 37) % Math.max(10, pw - 12)), py = top + 8 + ((k * 23) % Math.max(10, ph * 0.7)); ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill(); }
+            ctx.strokeStyle = '#b5834f'; ctx.lineWidth = 3; ctx.strokeRect(x, top, pw, ph);
+          } else {                                                                      // red noren curtain
+            ctx.fillStyle = '#fffaf0'; ctx.fillRect(x, top, pw, ph);
+            ctx.fillStyle = '#d63d4c'; const nh = ph * 0.62, n = 3, sw = pw / n;
+            for (let s = 0; s < n; s++) ctx.fillRect(x + s * sw + 1, top, sw - 2, nh);
+            ctx.strokeStyle = '#fff3e6'; ctx.lineWidth = 2.2;                              // simple wave crest pattern
+            for (let s = 0; s < n; s++) { const cx = x + s * sw + sw / 2, cyy = top + nh * 0.5; ctx.beginPath(); ctx.arc(cx, cyy, sw * 0.28, Math.PI, 0); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cyy + 6, sw * 0.28, Math.PI, 0); ctx.stroke(); }
+            ctx.fillStyle = '#7a4a2c'; ctx.fillRect(x - 2, top - 3, pw + 4, 4);
+          }
+          ctx.fillStyle = '#8a5530'; ctx.fillRect(u, -H, 6, H);                       // wooden post
+          ctx.fillStyle = '#a86b3c'; ctx.fillRect(u + 1, -H, 2, H);
+        }
+        ctx.fillStyle = '#b07440'; ctx.fillRect(0, -42, len, 28);                      // wainscot
+        ctx.fillStyle = '#9a6233'; for (let u = 0; u < len; u += 16) ctx.fillRect(u, -42, 1.5, 28);
+        ctx.fillStyle = '#7a4a2c'; ctx.fillRect(0, -14, len, 14);
+        ctx.fillStyle = '#e8728f'; ctx.fillRect(0, -H, len, 6);                        // pink frieze
+        ctx.fillStyle = '#5e3620'; ctx.fillRect(0, -H - 8, len, 10);
+      };
+      // walls only span the built part of the restaurant
+      const Z = Object.values(C.LAYOUT.zones).filter(zn => this.g.has(zn.unlock));
+      wall(-1, Math.max(...Z.filter(zn => zn.x === 0).map(zn => zn.y + zn.h)));   // left back wall along x = 0
+      wall(1, Math.max(...Z.filter(zn => zn.y === 0).map(zn => zn.x + zn.w)));    // right back wall along y = 0
+      this.scrT();
+      for (const d of C.LAYOUT.decor) if (d.wall) { const p = this.P(d.x, d.y); A().prop(ctx, d.p, p.x, p.y - d.h + 30, PW[d.p] || 30); }
+    }
+
+    // ---------------------------------------------------------------- conveyor (painted flat in iso space)
+    stadium(b, r) {
+      const ctx = this.ctx; ctx.beginPath();
+      ctx.moveTo(b.x0, b.cy - r); ctx.lineTo(b.x1, b.cy - r); ctx.arc(b.x1, b.cy, r, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(b.x0, b.cy + r); ctx.arc(b.x0, b.cy, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath();
+    }
+    drawBelt() {
+      const ctx = this.ctx, g = this.g, conv = g.conv;
+      for (const id in conv.belts) {
+        const b = conv.belts[id], R = b.R;
+        this.isoT(14); this.stadium(b, R + 16); ctx.fillStyle = '#6e4224'; ctx.fill();
+        this.isoT(); this.stadium(b, R + 16); ctx.fillStyle = '#c98b47'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#7b4a22'; ctx.stroke();
+        this.stadium(b, R + 12); ctx.fillStyle = '#e7b24c'; ctx.fill();
+        this.stadium(b, R + 10); ctx.fillStyle = '#45414a'; ctx.fill();
+        this.stadium(b, R); ctx.lineWidth = 18; ctx.setLineDash([3, 9]); ctx.lineDashOffset = -conv.offset; ctx.strokeStyle = '#5d5964'; ctx.stroke(); ctx.setLineDash([]);
+        this.stadium(b, R - 10); ctx.fillStyle = '#e7b24c'; ctx.fill();
+        this.stadium(b, R - 12); ctx.fillStyle = '#f1d6a8'; ctx.fill();
+      }
+      for (const id in conv.belts) {          // built-in bar counter on the dining side (customers eat here)
+        const b = conv.belts[id], R = b.R, cx0 = b.x0 - R - 14, cw = b.Ls + 2 * R + 28, cy0 = b.cy + R + 16, ch = CT.w, up = CT.up;
+        ctx.fillStyle = '#7a4626'; for (let dy = 16; dy > -up; dy -= 1.5) { this.isoT(dy); ctx.fillRect(cx0, cy0, cw, ch); }   // solid counter body, top raised above the belt
+        this.isoT(-up); ctx.fillStyle = '#e2ad6e'; ctx.fillRect(cx0, cy0, cw, ch);
+        ctx.fillStyle = '#cf955a'; for (let x = cx0 + 22; x < cx0 + cw; x += 22) ctx.fillRect(x, cy0, 1.5, ch);
+        ctx.strokeStyle = '#7b4a22'; ctx.lineWidth = 2; ctx.strokeRect(cx0, cy0, cw, ch);
+        ctx.fillStyle = '#f6d39c'; ctx.fillRect(cx0, cy0 + ch - 4, cw, 4); ctx.fillStyle = '#b97a42'; ctx.fillRect(cx0, cy0, cw, 3);
+      }
+      const Ld = g.C.LAYOUT.belt.loader; this.isoT();
+      ctx.fillStyle = '#8a5a34'; ctx.fillRect(Ld.x - 22, Ld.y - 9, 44, 18); ctx.fillStyle = '#b77a44'; ctx.fillRect(Ld.x - 19, Ld.y - 6, 38, 12);
+      const P = g.player;
+      if (P.hold && P.hold.kind === 'sushi' && Math.hypot(P.x - Ld.x, P.y - Ld.y) < 120) {
+        ctx.strokeStyle = `rgba(255,240,140,${0.55 + 0.4 * Math.sin(this.t * 6)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(Ld.x, Ld.y, 30, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    roundRect(x, y, w, h, r) { const c = this.ctx; c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+    plateAt(recipe, x, y, w = 26) {
+      const R = this.g.C.RECIPES[recipe]; const ctx = this.ctx;
+      if (R.plate) A().prop(ctx, R.plate, x, y + w * 0.28, w);
+      A().prop(ctx, R.icon, x, y + (R.plate ? 2 : w * 0.3), w * (R.plate ? 0.78 : 0.9));
+    }
+    // floor mat where the player (or Cashier Cat) stands to take payments
+    drawRegisterMat() {
+      const g = this.g, ctx = this.ctx, p = g.C.LAYOUT.cashier.pad; if (g.staff.some(s => s.role === 'cashier')) return;
+      this.isoT(); const busy = g.payQueue.length > 0;
+      ctx.fillStyle = busy ? 'rgba(255,214,90,0.55)' : 'rgba(255,255,255,0.22)'; ctx.fillRect(p.x - 16, p.y - 16, 32, 32);
+      ctx.strokeStyle = busy ? '#ffffff' : 'rgba(120,80,50,0.6)'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 5]); ctx.strokeRect(p.x - 16, p.y - 16, 32, 32); ctx.setLineDash([]);
+    }
+    // ---------------------------------------------------------------- build pads (dashed iso spots like Cat Pizza)
+    drawPads() {
+      const ctx = this.ctx, g = this.g;
+      this.isoT();
+      for (const sp of g.C.LAYOUT.upgradeSpots || []) {                       // dashed circle + yellow up arrow on the floor
+        ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.arc(sp.x, sp.y, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#5a3420'; ctx.lineWidth = 3; ctx.setLineDash([7, 6]); ctx.stroke(); ctx.setLineDash([]);
+        const can = sp.keys.some(k => { const i = g.upgradeInfo(k); return !i.locked && i.cost !== null && g.S.coins >= i.cost; });
+        ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(-Math.PI / 4);           // arrow points "up" on screen
+        ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(-11, -1); ctx.lineTo(-4.5, -1); ctx.lineTo(-4.5, 11); ctx.lineTo(4.5, 11); ctx.lineTo(4.5, -1); ctx.lineTo(11, -1); ctx.closePath();
+        ctx.fillStyle = can ? '#ffd23f' : '#f3e2b0'; ctx.fill(); ctx.strokeStyle = '#5a3420'; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
+      }
+      for (const u of g.C.UNLOCKS) {
+        if (!g.padVisible(u)) continue;
+        const p = u.pad, paid = g.S.padPaid[u.id] || 0, frac = u.cost ? paid / u.cost : 1;
+        const isTask = g.task() && g.task().id2 === u.id; const r = 30 * (isTask ? 1 + 0.06 * Math.sin(this.t * 5) : 1);
+        ctx.fillStyle = g.S.coins + paid >= u.cost ? 'rgba(120,230,120,0.35)' : 'rgba(255,255,255,0.28)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = isTask ? '#ffffff' : 'rgba(110,70,40,0.75)'; ctx.lineWidth = 3.5; ctx.setLineDash([9, 7]); ctx.stroke(); ctx.setLineDash([]);
+        if (frac > 0) { ctx.strokeStyle = '#ffcf3d'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); ctx.stroke(); }
+      }
+    }
+    // pizza-style price card above each build spot: white card, thick brown outline, tail pointing to the spot
+    padLabels() {
+      const ctx = this.ctx, g = this.g, tk = g.task();
+      for (const u of g.C.UNLOCKS) {
+        if (!g.padVisible(u)) continue;
+        const q = this.P(u.pad.x, u.pad.y), paid = g.S.padPaid[u.id] || 0, rem = u.cost - paid;
+        const afford = g.S.coins >= rem, isTask = tk && tk.id2 === u.id;
+        const cy = q.y - 62, txt = u.cost ? this.fmt(rem) : 'FREE';
+        // every card has the same size: long names shrink their font instead of widening the card
+        const w = PADCARD.w, h = PADCARD.h, x0 = q.x - w / 2, y0 = cy - h / 2;
+        let fs = 13; ctx.font = `900 ${fs}px ${FONT}`; while (fs > 10 && ctx.measureText(u.name).width > w - 30) { fs -= 0.5; ctx.font = `900 ${fs}px ${FONT}`; }
+        ctx.font = `900 22px ${FONT}`; const pw = ctx.measureText(txt).width + 30;
+        ctx.save();
+        if (Math.hypot(g.player.x - u.pad.x, g.player.y - u.pad.y) < 70) ctx.globalAlpha = 0.35;          // fade so it never hides the chef standing under it
+        ctx.fillStyle = '#4a2614'; this.roundRect(x0, y0 + 4, w, h, 14); ctx.fill();                       // drop edge
+        ctx.beginPath(); ctx.moveTo(q.x - 9, y0 + h + 2); ctx.lineTo(q.x, y0 + h + 14); ctx.lineTo(q.x + 9, y0 + h + 2); ctx.fill();
+        ctx.fillStyle = '#fffdf6'; ctx.strokeStyle = '#4a2614'; ctx.lineWidth = 3;
+        this.roundRect(x0, y0, w, h, 14); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(q.x - 9, y0 + h - 1); ctx.lineTo(q.x, y0 + h + 10); ctx.lineTo(q.x + 9, y0 + h - 1); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(q.x - 9, y0 + h); ctx.lineTo(q.x, y0 + h + 10); ctx.lineTo(q.x + 9, y0 + h); ctx.stroke();
+        ctx.textAlign = 'center'; ctx.fillStyle = '#6b3a22'; ctx.font = `900 ${fs}px ${FONT}`; ctx.fillText(u.name, q.x - 6, y0 + 18);
+        this.coin(q.x - pw / 2 + 10, y0 + 38, 9);
+        ctx.font = `900 22px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = afford ? '#2f9a46' : '#3a1d0e'; ctx.fillText(txt, q.x - pw / 2 + 24, y0 + 46);
+        if (u.cost && paid > 0) { ctx.fillStyle = '#ead6bd'; this.roundRect(x0 + 10, y0 + h - 7, w - 20, 4, 2); ctx.fill(); ctx.fillStyle = '#ffc93c'; this.roundRect(x0 + 10, y0 + h - 7, (w - 20) * paid / u.cost, 4, 2); ctx.fill(); }
+        const ik = u.icon.startsWith('staff_') ? null : u.icon;
+        if (ik) this.iconFit(ik, x0 + w - 6, y0 + 4, PADCARD.icon); else this.drawCharIcon(u.icon, x0 + w - 2, y0 + 16);   // same icon box on every card
+        ctx.restore();
+        u._cardTop = y0;                                                          // the task arrow sits on top of this card
+        // only the current task gets the big arrow, so there is always exactly one guide on screen
+      }
+    }
+    // draw a prop icon scaled to fit a box x box square centred on (cx, cy), whatever its aspect ratio
+    iconFit(key, cx, cy, box) { const a = A().propAspect(key), w = a > 1 ? box / a : box; A().propCentered(this.ctx, key, cx, cy, w); }
+    // big green guide arrow (Cat Pizza style), tip at (x, y)
+    bigArrow(x, y, s = 1) {
+      const c = this.ctx; c.save(); c.translate(x, y); c.scale(s, s);
+      c.beginPath(); c.moveTo(0, 0); c.lineTo(-30, -30); c.lineTo(-13, -30); c.lineTo(-13, -62); c.lineTo(13, -62); c.lineTo(13, -30); c.lineTo(30, -30); c.closePath();
+      c.lineJoin = 'round'; c.lineWidth = 9; c.strokeStyle = '#ffffff'; c.stroke(); c.lineWidth = 4; c.strokeStyle = '#2e7a3c'; c.stroke();
+      const gr = c.createLinearGradient(0, -62, 0, 0); gr.addColorStop(0, '#8ee87a'); gr.addColorStop(1, '#3fb54f'); c.fillStyle = gr; c.fill();
+      c.restore();
+    }
+    drawCharIcon(icon, x, y) {
+      const map = { staff_chef: 'chef', staff_cashier: 'cashier', staff_cleaner: 'cleaner', staff_waiter: 'waiter', staff_server: 'server', staff_manager: 'manager' };
+      const m = map[icon]; if (!m) return;
+      this.blit(CST.Anim.frame(m, 'idle', 'front', 0), x, y, 0.18 * (CHAR_MUL[m] || 1));
+    }
+    fmt(n) { n = Math.round(n); return n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
+    blit(fr, x, y, s = CHAR_SCALE) {
+      if (!fr) return; const f = A().frame(fr.atlas, fr.key), im = A().img[fr.atlas]; if (!f || !im) return;
+      this.ctx.drawImage(im, f[0], f[1], f[2], f[3], x - fr.ax * s, y - fr.ay * s, f[2] * s, f[3] * s);
+    }
+    // prop drawn upright with its base at the front corner of its world footprint
+    propAt(key, x, y, fw = 40, fh = 40, w, dy = 0, flip = false) {
+      const p = this.P(x, y), by = p.y + (fw + fh) * this.K / 4 + dy;
+      if (!flip) { A().prop(this.ctx, key, p.x, by, w || PW[key] || 50); return; }
+      const c = this.ctx; c.save(); c.translate(p.x, 0); c.scale(-1, 1); A().prop(c, key, 0, by, w || PW[key] || 50); c.restore();   // mirrored: faces front-right
+    }
+
+    // ---------------------------------------------------------------- depth-sorted scene
+    drawSorted() {
+      const g = this.g, L = g.C.LAYOUT, list = [];
+      const push = (d, fn) => list.push({ d, fn });
+      for (const k in g.stations) { const s = g.stations[k]; push(s.x + s.y + 20, () => this.drawStation(s)); }
+      if (g.has('rice')) push(L.rice.x + L.rice.y + 20, () => { this.propAt(L.rice.prop, L.rice.x, L.rice.y, 46, 70, 84, 0, true); this.tagW(L.rice.x, L.rice.y, 70, `Rice x${g.C.RICE_MULT}`); });
+      for (const bn of g.bins()) push(bn.x + bn.y + 8, () => { const q = this.P(bn.x, bn.y); A().prop(this.ctx, 'trash_bin', q.x, q.y + 12, 30); const h = g.player.hold;
+        if (h && h.kind !== 'dirty' && Math.hypot(g.player.x - bn.x, g.player.y - bn.y) < 160) this.tagW(bn.x, bn.y, 46, 'Trash'); });
+      if (g.has('storage')) push(L.storage.x + L.storage.y + 20, () => { this.propAt(L.storage.prop, L.storage.x, L.storage.y, 40, 60, 62); this.tagW(L.storage.x, L.storage.y, 60, 'Auto-feed'); });
+      for (const k in g.crates) { const c = g.crates[k]; push(c.x + c.y + 10, () => this.drawCrate(c)); }
+      for (const s of g.sinks()) push(s.x + s.y + 15, () => {
+        // auto-wash states: 0 idle · 1 bubbles · 2 sponge · 3 sparkle when the backlog is done; mirrored on the west wall so its front faces down-right
+        const w = g.wash[s.id], fi = w && w.q > 0 ? 1 + (Math.floor(this.t * 3) % 2) : w && w.done > 0 ? 3 : 0;
+        this.propAt('sink2_' + fi, s.x, s.y, 44, 74, 108, 4, s.x < g.C.SPLIT_X); this.tagW(s.x, s.y, 76, w && w.q > 0 ? `Washing ×${w.q}` : 'Dish Return'); });
+      push(L.cashier.x + L.cashier.y + 15, () => this.propAt(L.cashier.prop, L.cashier.x, L.cashier.y, 80, 26, 100));
+      if (g.has('manager')) push(L.managerDesk.x + L.managerDesk.y + 10, () => this.propAt(L.managerDesk.prop, L.managerDesk.x, L.managerDesk.y, 56, 30, 70));
+      for (const d of L.decor) if (!d.wall) push(d.x + d.y + 5, () => this.propAt(d.p, d.x, d.y, 24, 24));
+      if (g.has('final_decor')) for (const d of L.finalDecor) push(d.x + d.y + 10, () => this.propAt(d.p, d.x, d.y, 30, 30));
+      if (g.has('queue')) for (let i = 0; i < 2; i++) {   // two waiting stools; a seated guest's sprite carries its own stool
+        const sp = g.queueSpot(i);
+        push(sp.x + sp.y - 1, () => { const q = this.P(sp.x, sp.y); A().prop(this.ctx, 'stool_bar', q.x + STOOL.dx, q.y + STOOL.dy, STOOL.w); });   // same stool whether a guest sits on it or not
+      }
+      for (const id in g.tables) { const t = g.tables[id]; push(t.x + t.y, () => this.drawTable(t)); }
+      for (const id in g.seats) { const s = g.seats[id]; push(s.x + s.y - 1, () => this.drawSeat(s));
+        if (s.vip) push(s.x + s.y + 2.5, () => { const q = this.P(s.x, s.y); A().prop(this.ctx, 'vip_sofa_front', q.x + VIPF.sx, q.y + VIPF.sy, VIPF.sw); });   // armrest + seat front over the seated VIP
+        if (s.vip) push(s.x + s.y + 3, () => { const q = this.P(s.x, s.y); A().prop(this.ctx, 'vip_table', q.x + VIPF.tx, q.y + VIPF.ty, VIPF.tw);
+          for (let i = 0; i < Math.min(6, s.dirty); i++) A().prop(this.ctx, 'c_plate_pink', q.x + VIPF.tx, q.y + VIPF.ty - VIPF.top - i * 2.5, 14, 0.95);   // finished plates stay on the VIP table
+          if (s.dirty > 0 && !(s.occupant && s.occupant.state === 'EAT')) this.bubbleIcon(q.x + VIPF.tx, q.y + VIPF.ty - VIPF.top - 26 - Math.min(6, s.dirty) * 3, 'c_fx_drop', 0.7); }); }   // round side table, in front of the seated VIP
+      for (const p of g.conv.allPlates()) { const pt = g.conv.belts[p.belt].point(p.s); push(pt.x + pt.y, () => { const q = this.P(pt.x, pt.y); this.plateAt(p.recipe, q.x, q.y - 2, 26); }); }
+      const Ld = L.belt.loader;
+      push(Ld.x + Ld.y, () => g.staging.forEach((it, i) => { const j = i % 6, layer = Math.floor(i / 6); const q = this.P(Ld.x - 12 + (j % 3) * 12, Ld.y - 4 + Math.floor(j / 3) * 8); this.plateAt(it.r, q.x, q.y - 4 - layer * 6, 18); })   /* extra plates stack in layers */);
+      for (const p of g.piles) push(p.x + p.y, () => this.drawPile(p));
+      for (const a of g.allAgents()) push(a.atStation && a.workAt && !a.moving ? a.workAt.d : (a.seat && a.seat.table && a.x === a.seat.x && a.y === a.seat.y) ? g.tables[a.seat.table].x + g.tables[a.seat.table].y + 1 : a.x + a.y + (a.seat && a.x === a.seat.x && a.y === a.seat.y ? 2 : 0), () => this.drawAgent(a));   // table guests draw just after their table
+      list.sort((a, b) => a.d - b.d);
+      for (const it of list) it.fn();
+      this.padLabels();
+    }
+    tagW(x, y, h, t) { const p = this.P(x, y); this.tag(p.x, p.y - h, t); }
+    tag(x, y, t) { const c = this.ctx; c.font = `800 11px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(70,35,20,0.85)'; c.strokeText(t, x, y); c.fillStyle = '#fff6d8'; c.fillText(t, x, y); }
+    // the chef standing at this station in the 'prepare' pose (drawn as part of the counter sprite)
+    stationWorker(s) { for (const a of this.g.allAgents()) if (a.atStation === 'prepare' && a.workAt && !a.moving && a.workAt.x === s.x && a.workAt.y === s.y - 6) return a; return null; }
+    drawStation(s) {
+      const ctx = this.ctx, g = this.g, R = g.C.RECIPES[s.recipe];
+      const p = this.P(s.x, s.y);
+      const hasIn = R.ing ? s.input > 0 : true, full = s.output.length >= g.C.STATION.outMax;
+      if (STATION2[s.recipe]) {
+        // new prep counters: 0 ready · 1-2 knife cutting · 3 done; with the chef working, the chef-at-counter overlay plays instead
+        if (s._made !== s.made) { if (s._made !== undefined) s._flashT = 0.45; s._made = s.made; }
+        s._flashT = Math.max(0, (s._flashT || 0) - this.dtLast);
+        // v3 counters (empty lower shelf): 0 ready · 1 knife cutting · 2 slices done (sparkle) · 3 empty board (no fish)
+        const worker = this.stationWorker(s), key = 'st3_' + s.recipe + '_';
+        // the counter only animates while a chef works at it; otherwise it stays still and finished plates just appear on the shelf
+        const fi = worker ? 0 : (R.ing && s.input <= 0) ? 3 : 0;
+        const W = STATION2[s.recipe], by = p.y + (84 + 50) * this.K / 4 + 4, DW = W * 567 / 520, k = DW / 567;
+        A().prop(ctx, key + fi, p.x + 6, by, DW);
+        if (worker) A().prop(ctx, 'chefst_' + s.recipe + '_' + (Math.floor(this.t * 3.2) % 4), p.x + 6, by - 2, W);
+        // finished sushi sit on the lower shelf (sprite px: shelf runs from (170,282) to (380,248) on a 567x367 canvas)
+        const x0 = p.x + 6 - DW / 2, y0 = by - 367 * k;
+        s.output.forEach((r, i) => { const cx = 172 + i * 40, cy = 284 - (cx - 170) * 34 / 210; this.plateAt(r, x0 + cx * k, y0 + cy * k - 4, 13); });
+      } else if (STATION4[s.recipe]) {
+        // cucumber & nori / ikura counters: 0 empty · 1 ingredients ready (working) · 2 rolls placed (finished plates waiting) · 3 completed flash
+        if (s._made !== s.made) { if (s._made !== undefined) s._flashT = 0.5; s._made = s.made; }
+        s._flashT = Math.max(0, (s._flashT || 0) - this.dtLast);
+        const fi = s._flashT > 0 ? 3 : s.output.length ? 2 : hasIn ? 1 : 0, S4 = STATION4[s.recipe];
+        A().prop(ctx, S4.key + fi, p.x + S4.dx, p.y + (84 + 50) * this.K / 4 + S4.dy, S4.w);
+      } else if (STATION5[s.recipe]) {
+        const S5 = STATION5[s.recipe], by = p.y + (84 + 50) * this.K / 4 + S5.dy, h = A().prop(ctx, S5.key, p.x + S5.dx, by, S5.w);
+        // lower shelf of the counter (sprite fractions): items stand on its floor, back row first
+        const x0 = p.x + S5.dx - S5.w / 2, y0 = by - h;
+        s.output.forEach((r, i) => { const row = i < 3 ? 0 : 1, col = i % 3; const fx = 0.44 + col * 0.085 - row * 0.03, fy = 0.80 + row * 0.05 - col * 0.035;
+          A().prop(ctx, g.C.RECIPES[r].icon, x0 + fx * S5.w, y0 + fy * h, 9); });
+      } else {
+        this.propAt(s.prop, s.x, s.y, 84, 50, PW[s.prop] || 104);
+        s.output.forEach((r, i) => this.plateAt(r, p.x - 18 + (i % 3) * 14, p.y - 6 - Math.floor(i / 3) * 6, 16));
+      }
+      const low = !STATION2[s.recipe], LX = p.x + (low ? 26 : 34), LY = p.y - (low ? 70 : 92);   // smaller counters: keep the tag close to them                                   // label sits up and to the right of the chef working behind the counter
+      ctx.save(); ctx.translate(LX, LY);
+      if (R.ing) {
+        this.roundRect(-34, -10, 68, 20, 10); ctx.fillStyle = 'rgba(255,255,255,0.93)'; ctx.fill();
+        this.iconFit(R.icon, -24, 0, 15);
+        ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'left';
+        ctx.fillStyle = '#7a3b2a'; ctx.fillText(`${s.input}`, -14, 3);
+        this.iconFit(g.C.INGREDIENTS[R.ing].icon, 1, 0, 12);
+        ctx.fillStyle = full ? '#e0464f' : '#3aa856'; ctx.fillText(full ? 'FULL' : `${s.output.length}/${g.C.STATION.outMax}`, 9, 3);
+      } else {   // no ingredient needed (drink / dessert): compact pill — recipe icon + count
+        this.roundRect(-22, -10, 44, 20, 10); ctx.fillStyle = 'rgba(255,255,255,0.93)'; ctx.fill();
+        this.iconFit(R.icon, -12, 0, 15);
+        ctx.font = `800 9px ${FONT}`; ctx.textAlign = 'left';
+        ctx.fillStyle = full ? '#e0464f' : '#3aa856'; ctx.fillText(full ? 'FULL' : `${s.output.length}/${g.C.STATION.outMax}`, -3, 3);
+      }
+      ctx.restore();
+      if (hasIn && !full) {
+        // processing badge: white disc, thick green progress ring, recipe icon in the middle, gentle pulse
+        const bx = LX + (R.ing ? 48 : 36), byy = LY, rr = 13 + Math.sin(this.t * 6) * 0.8;
+        ctx.beginPath(); ctx.arc(bx, byy, rr + 4, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#6b3a22'; ctx.stroke();
+        ctx.beginPath(); ctx.lineWidth = 5; ctx.strokeStyle = '#d9f2d4'; ctx.arc(bx, byy, rr, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.lineCap = 'round'; ctx.strokeStyle = '#3fbf5e'; ctx.arc(bx, byy, rr, -Math.PI / 2, -Math.PI / 2 + Math.max(0.05, s.prog) * Math.PI * 2); ctx.stroke(); ctx.lineCap = 'butt';
+        A().propCentered(ctx, R.icon, bx, byy, 15);
+      } else if (R.ing && !hasIn) this.bubbleIcon(LX + 44, LY, g.C.INGREDIENTS[R.ing].icon, 0.8);
+    }
+    drawCrate(c) {
+      const g = this.g; this.propAt(c.prop, c.x, c.y, 34, 34, 44);
+      this.tagW(c.x, c.y, 26, `${g.C.INGREDIENTS[c.ing].name} · ${g.C.INGREDIENTS[c.ing].cost}c`);
+    }
+    // a table whose two chairs hold an orange cat (left) and a gray cat (right), both seated -> drawn as one pair sprite
+    tablePair(t) {
+      const g = this.g, L = g.seats[t.id + 'L'], R = g.seats[t.id + 'R'], sat = (s, ch) => s && s.occupant && s.occupant.char === ch && s.occupant.x === s.x && s.occupant.y === s.y;
+      return sat(L, 'cust_orange') && sat(R, 'cust_gray') ? { L: L.occupant, R: R.occupant } : null;
+    }
+    soloGuest(t, side) {   // seated guest whose skin matches the cat drawn for that chair in the table sheet
+      const s = this.g.seats[t.id + side], c = s && s.occupant;
+      return c && c.x === s.x && c.y === s.y && c.char === (side === 'L' ? 'cust_orange' : 'cust_gray') ? c : null;
+    }
+    // one orange guest alone at the table (left chair faces front-right, right chair has its back to the camera)
+    oneGuest(t) {
+      const g = this.g, at = side => { const s = g.seats[t.id + side], c = s && s.occupant; return c && c.x === s.x && c.y === s.y ? c : null; };
+      const L = at('L'), R = at('R');
+      if (L && !R && L.char === 'cust_orange') return { side: 'L', c: L };
+      if (R && !L && R.char === 'cust_orange') return { side: 'R', c: R };
+      if (R && !L && R.char === 'cust_gray') return { side: 'G', c: R };     // gray guest alone: same sheet, cat recoloured gray (dine_one_G_*)
+      return null;
+    }
+    drawTable(t) { this.drawTableBody(t); this.tablePlates(t); }
+    // finished plates of each guest sit on their half of the table top (drawn after the table sprite, so never under it)
+    tablePlates(t) {
+      const p = this.P(t.x, t.y); let drop = null;
+      for (const side of ['L', 'R']) {
+        const s = this.g.seats[t.id + side]; if (!s || !(s.dirty > 0)) continue;
+        const c = s.occupant, n = Math.min(6, s.dirty), x = p.x + TOP[side][0], y = p.y + TOP[side][1];
+        for (let i = 0; i < n; i++) A().prop(this.ctx, 'c_plate_pink', x, y - i * 2.5, 14, 0.95);
+        if ((!c || c.state !== 'EAT') && !drop) drop = { x: p.x - 8, y: y - 30 - n * 2.5 };
+      }
+      if (drop) this.bubbleIcon(drop.x, drop.y, 'c_fx_drop', 0.7);   // one 'needs cleaning' bubble per table
+    }
+    drawTableBody(t) {
+      const g = this.g, L = g.seats[t.id + 'L'], R = g.seats[t.id + 'R'];
+      const p = this.P(t.x, t.y), ctx = this.ctx;
+      ctx.fillStyle = 'rgba(60,30,15,0.16)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 6, 44, 16, 0, 0, Math.PI * 2); ctx.fill();
+      const pair = this.tablePair(t);
+      if (pair) {   // both chairs taken: the two-cat sheet (orange left facing front-right, gray right facing back-left)
+        const eating = [pair.L, pair.R].some(c => c.state === CST.CUST_STATE.EAT || c.state === CST.CUST_STATE.PICK_SUSHI);
+        const fi = eating ? Math.floor(this.t * 2.5 + t.x) % 3 : 0;
+        A().prop(ctx, 'dine_pair_' + fi, p.x + DINE.px, p.y + DINE.py, DINE.w * 204 / 196);
+      } else if (this.oneGuest(t)) {   // exactly one guest seated: the single-guest table sheet (8-frame eat loop)
+        const { side, c } = this.oneGuest(t), eating = c.state === CST.CUST_STATE.EAT || c.state === CST.CUST_STATE.PICK_SUSHI;
+        const fi = eating ? Math.floor(this.t * 5 + t.x) % 8 : 0;
+        A().prop(ctx, 'dine_one_' + side + '_' + fi, p.x + DINE.one.dx, p.y + DINE.one.dy, DINE.one.w);
+      } else {
+        // a single seated guest (or two that don't match the pair sheet): draw each cat cut from the pair sheet on its own chair.
+        // The right chair faces away from the camera, so its cat goes under the table sprite (chair back in front of it); the left cat goes on top.
+        const solo = side => {
+          const c = this.soloGuest(t, side); if (!c) return;
+          const eating = c.state === CST.CUST_STATE.EAT || c.state === CST.CUST_STATE.PICK_SUSHI, fi = eating ? Math.floor(this.t * 2.5 + t.x + (side === 'R' ? 1 : 0)) % 3 : 0;
+          const o = DINE.solo[side]; A().prop(ctx, 'dine_solo_' + (side === 'L' ? 'orange' : 'gray') + '_' + fi, p.x + DINE.px + o[0], p.y + DINE.py + o[1], DINE.w * 204 / 196);
+          if (eating) this.plateAt(c.plate ? c.plate.recipe : 'salmon', p.x + (side === 'L' ? -4 : 6), p.y - 14, 18);
+        };
+        solo('R');
+        A().prop(ctx, 'dine_one_empty', p.x + DINE.one.dx, p.y + DINE.one.dy, DINE.one.w);   // empty table rebuilt from the single-guest sheet: same furniture in all three states
+        solo('L');
+      }
+    }
+    // screen point on the bar counter top in front of a belt stool (counter strip = belt.cy + R + 15 … +39)
+    counterPt(seat, dx) { const b = this.g.conv.belts[seat.belt] || Object.values(this.g.conv.belts)[0]; const q = this.P(seat.x + 14 + dx, b.cy + b.R + 16 + CT.w * 0.55); q.y -= CT.up; return q; }
+    drawSeat(s) {
+      const ctx = this.ctx, g = this.g, c = s.occupant;
+      const seated = c && c.x === s.x && c.y === s.y;
+      const p = this.P(s.x, s.y);
+      if (s.vip) { A().prop(ctx, 'vip_sofa', p.x + VIPF.sx, p.y + VIPF.sy, VIPF.sw); }   // same sofa whether the VIP sits in it or not (the side table is drawn in front, see drawVipTable)
+      else if (!s.table && (!seated || s.belt)) { if (s.belt) A().prop(ctx, 'stool_bar', p.x + STOOL.dx, p.y + STOOL.dy, STOOL.w); else A().prop(ctx, 'stool', p.x, p.y + 10, 26); }   // counter-eat sprites carry their own stool
+      if (s.dirty > 0 && !s.vip && !s.table) {
+        let q;
+        if (s.belt) q = this.counterPt(s, 0);                 // on the bar counter top in front of the customer, never on the moving belt
+        else if (s.table) { const t = g.tables[s.table]; q = this.P(t.x + (s.x < t.x ? -10 : 10), t.y); }
+        else { q = this.P(s.x, s.y); q.x += VIPF.tx; q.y += VIPF.ty - 22; }   // VIP: on the round side table
+        const lift = s.belt ? 0 : 12;                          // counter plates sit flat on the counter top
+        for (let i = 0; i < Math.min(8, s.dirty); i++) A().prop(ctx, 'c_plate_pink', q.x, q.y + 4 - lift - i * 3, 18, 0.9);
+        if (!c || c.state !== 'EAT') this.bubbleIcon(q.x, q.y - 38 - Math.min(8, s.dirty) * 3, 'c_fx_drop', 0.7);
+      }
+    }
+    drawPile(p) {
+      const q = this.P(p.x, p.y), n = Math.min(8, 2 + Math.floor(p.amount / 15));
+      for (let i = 0; i < n; i++) this.coin(q.x + ((i * 7) % 15) - 7, q.y - i * 3, 7);
+      this.tag(q.x, q.y - n * 3 - 12, this.fmt(p.amount));
+    }
+    coin(x, y, r) { const c = this.ctx; c.fillStyle = '#c98a12'; c.beginPath(); c.ellipse(x, y + 1.5, r, r * 0.55, 0, 0, Math.PI * 2); c.fill(); c.fillStyle = '#ffd34d'; c.beginPath(); c.ellipse(x, y, r, r * 0.55, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#e6a91c'; c.lineWidth = 1.2; c.stroke(); }
+    logical(a) {
+      const CS = CST.CUST_STATE;
+      if (a.kind) {
+        if ([CS.SIT, CS.WAIT_FOR_SUSHI, CS.EXTRA_WAIT, CS.WAIT_ORDER].includes(a.state) && a.seat) return 'sit';
+        if ([CS.PICK_SUSHI, CS.EAT].includes(a.state)) return 'eat';
+        if (a.moving) return 'walk';
+        if (a.char === 'cust_orange' && a.emote === 'heart') return 'happy';
+        return 'idle';
+      }
+      if (a.char === 'chef') {
+        if (a.cheerT > 0) return 'cheer';
+        if (a.working === 'place' && !a.moving) return 'place';
+        if (!a.moving && a.atStation) return a.atStation;          // 'prepare' at a sushi station, 'wash' at the dish return
+        if (a.hold && a.hold.kind !== 'dirty') return a.moving ? 'carry' : 'carry_idle';
+        if (a.moving) return 'walk';
+        return (a.idleT || 0) > 8 ? 'sleep' : 'idle';
+      }
+      if (a.asleep) return 'sleep';
+      if (a.char === 'waiter' && a.hold && !a.moving) return 'carry_idle';
+      if (a.working === 'wipe' && a.char === 'cleaner') return 'wipe';
+      if (a.moving) return a.hold ? (a.char === 'waiter' && a.hold.kind === 'dirty' ? 'carry_dirty' : 'carry') : 'walk';
+      if (a.working === 'inspect') return 'inspect';
+      if (a.char === 'server' && a.working === 'serve') return 'serve';
+      return 'idle';
+    }
+    drawAgent(a) {
+      if (a.seat && a.seat.table && a.x === a.seat.x && a.y === a.seat.y && (this.tablePair(this.g.tables[a.seat.table]) || this.oneGuest(this.g.tables[a.seat.table]) || this.soloGuest(this.g.tables[a.seat.table], a.seat.id.slice(-1)))) { this.drawAgentOverlay(a, this.P(a.x, a.y), true); return; }   // drawn inside the table pair sprite
+      if (a.atStation === 'prepare' && !a.moving && a.workAt && Object.values(this.g.stations).some(s => STATION2[s.recipe] && a.workAt.x === s.x)) return;   // drawn by the station overlay
+      const ctx = this.ctx, lg = this.logical(a), working = (lg === 'prepare' || lg === 'wash') && a.workAt; let q = working ? this.P(a.workAt.x, a.workAt.y) : this.P(a.x, a.y);
+      const seated = lg === 'sit' || lg === 'eat';
+      if (!seated && !working) { const sw = a.char === 'chef' ? 22 : 17; const sg = ctx.createRadialGradient(q.x, q.y + 2, 1, q.x, q.y + 2, sw); sg.addColorStop(0, 'rgba(60,30,15,0.42)'); sg.addColorStop(0.7, 'rgba(60,30,15,0.28)'); sg.addColorStop(1, 'rgba(60,30,15,0)'); ctx.save(); ctx.translate(q.x, q.y + 2); ctx.scale(1, 0.42); ctx.translate(-q.x, -(q.y + 2)); ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(q.x, q.y + 2, sw, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+      // (no ring under the player — the green ground pointer guides instead, as in Cat Pizza)
+      const dir = seated && a.seat ? (a.seat.vip ? 'front' : a.seat.face) : a.dir;
+      const onBench = a.onBench && a.state === CST.CUST_STATE.QUEUE;   // game clears onBench as soon as the guest leaves the stool spot
+      const atCounter = (seated && a.seat && a.seat.belt && a.kind === 'reg') || onBench;
+      if (atCounter && a.seat && a.seat.belt && (a.plate || lg === 'eat')) { const pp = this.counterPt(a.seat, -10); this.plateAt(a.plate ? a.plate.recipe : 'salmon', pp.x, pp.y - 4, 24); }
+      const onStool = atCounter && COUNTER_EATERS[a.char];   // counter stools and the two waiting stools: seated sprite with its own stool
+      if (seated && a.seat && a.seat.vip && VIPF.cat[a.char]) { q = { x: q.x + VIPF.cat[a.char][0], y: q.y + VIPF.cat[a.char][1] }; }
+      const fr = CST.Anim.frame(a.char, onBench && !onStool ? 'bench_sit' : atCounter ? (lg === 'eat' ? 'counter_eat' : 'counter_sit') : lg, onBench ? 'back_right' : dir, a.animT);
+      const behind = a.hold && a.dir.startsWith('back');          // walking away: the tray is in front of the body, hidden behind it
+      if (behind) this.drawHold(a, q);
+      this.blit(fr, q.x, q.y + (working ? (lg === 'prepare' ? -30 : -24) : onStool ? 12 : atCounter ? -9 : seated ? 6 : 2), CHAR_SCALE * (CHAR_MUL[a.char] || 1));
+      if (a.hold && !behind) this.drawHold(a, q);
+      this.drawAgentOverlay(a, q, seated);
+      if (a.isPlayer && lg === 'sleep') this.bubbleIcon(q.x + 22, q.y - 80, 'c_fx_zzz', 0.8);
+      if (a.asleep) { const bob = Math.sin(this.t * 3) * 3; this.bubbleIcon(q.x + 20, q.y - 82 + bob, 'c_fx_zzz', 0.95, false, null, null); this.tag(q.x, q.y + 18, 'Walk by to wake!'); }
+    }
+    ring(q) { const c = this.ctx; c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 2.5; c.beginPath(); c.ellipse(q.x, q.y + 2, 18, 8, 0, 0, Math.PI * 2); c.stroke(); }
+    drawHold(a, q) {
+      const h = a.hold, n = h.items.length, ctx = this.ctx;
+      // stack rests on the tray/hands at chest height (not on the head), nudged toward the facing side
+      const chef = a.char === 'chef', HC = { chef: [14, 15], waiter: [12, 13], server: [12, 14], cleaner: [12, 14], cashier: [12, 14], manager: [12, 16] }[a.char] || [10, 16];   // [side offset, chest height] per character
+      const side = a.dir.includes('right') ? HC[0] : a.dir.includes('left') ? -HC[0] : 0;
+      const bx = q.x + side, by = q.y - HC[1], step = h.kind === 'dirty' ? 3 : (HC[1] < 25 ? 4.5 : 7);
+      for (let i = 0; i < n; i++) {
+        const it = h.items[i], y = by - i * step;
+        if (h.kind === 'ing') A().prop(ctx, this.g.C.INGREDIENTS[it].icon, bx, y + 8, 22);
+        else if (h.kind === 'dirty') A().prop(ctx, 'c_plate_pink', bx, y + 6, 22, 0.9);
+        else if (!this.g.C.RECIPES[it].plate) A().prop(ctx, this.g.C.RECIPES[it].icon, bx, y + 8, 13);   // drinks / desserts: hand-sized, not plate-sized
+        else this.plateAt(it, bx, y, 22);
+      }
+      if (a.isPlayer && n >= this.g.capOf(a, h.kind)) this.tag(bx, by - n * step - 14, 'MAX');
+    }
+    drawAgentOverlay(a, q, seated) {
+      const C = this.g.C, CS = CST.CUST_STATE, ctx = this.ctx;
+      const top = q.y - (a.char === 'chef' ? 82 : seated ? 54 : 62);
+      if (a.kind) {
+        if ([CS.WAIT_FOR_SUSHI, CS.WAIT_ORDER, CS.QUEUE].includes(a.state)) {
+          const max = a.kind === 'reg' ? (a.state === CS.QUEUE ? C.CUSTOMER.patienceQueue : C.CUSTOMER.patienceSeat) : C.VIP[a.kind].patience;
+          const f = Math.max(0, Math.min(1, a.patience / max));
+          ctx.fillStyle = 'rgba(0,0,0,0.35)'; this.roundRect(q.x - 16, top - 4, 32, 6, 3); ctx.fill();
+          ctx.fillStyle = f > 0.5 ? '#5fd06a' : f > 0.25 ? '#ffc23d' : '#f04f4f'; this.roundRect(q.x - 16, top - 4, 32 * f, 6, 3); ctx.fill();
+        }
+        if (a.state === CS.WAIT_FOR_SUSHI && a.want) this.bubbleIcon(q.x, top - 22, C.RECIPES[a.want].icon, 1.15);   // what this customer is waiting for
+        if (a.state === CS.WAIT_ORDER && a.order && a.order.length) { this.bubbleIcon(q.x, top - 22, C.RECIPES[a.order[0]].icon, 1.1, a.kind !== 'reg'); if (a.order.length > 1) this.tag(q.x + 16, top - 30, 'x' + a.order.length); }
+        if (a.state === CS.EXTRA_WAIT && a.extra) this.bubbleIcon(q.x, top - 22, C.RECIPES[a.extra].icon, 1);
+        if (a.state === CS.PAY) this.bubbleIcon(q.x, top - 18, null, 0.9, false, '$');
+        if (a.kind !== 'reg' && a.state !== CS.LEAVE) { ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#4a1630'; ctx.strokeText('VIP', q.x, top + 14); ctx.fillStyle = '#ffd34d'; ctx.fillText('VIP', q.x, top + 14); }
+      }
+      if (a.emote === 'heart') this.bubbleIcon(q.x + 14, top - 10, 'c_fx_heart', 0.8);
+      if (a.emote === 'angry' || a.emote === 'angry_hint') this.bubbleIcon(q.x + 14, top - 10, null, 0.8, false, '!', '#f04f4f');
+      if (a.emote === 'hands_full') this.bubbleIcon(q.x, top - 14, null, 0.9, false, 'Full!', '#e0464f');
+      if (a.emote === 'hands_dirty') this.bubbleIcon(q.x, top - 14, 'c_stack_pink', 0.9);
+      if (a.emote === 'nocoin') this.bubbleIcon(q.x, top - 14, null, 0.9, false, '0¢', '#e0464f');
+      if (a.emote === 'max') this.bubbleIcon(q.x, top - 14, null, 0.9, false, 'MAX', '#e0464f');
+      if (a.emote === 'boost') this.bubbleIcon(q.x, top - 14, null, 1, true, 'x1.5', '#ff8a00');
+      if (a.role === 'cashier' && this.g.payQueue.length && !a.moving) this.bubbleIcon(q.x + 16, top + 4, null, 0.7, false, '$', '#3aa856');
+    }
+    bubbleIcon(x, y, icon, s = 1, gold, text, col) {
+      const ctx = this.ctx; const r = 13 * s;
+      ctx.fillStyle = gold ? '#fff2c2' : '#ffffff'; ctx.strokeStyle = gold ? '#e6a91c' : 'rgba(90,50,30,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.moveTo(x - 4 * s, y + r - 2); ctx.lineTo(x, y + r + 6 * s); ctx.lineTo(x + 4 * s, y + r - 2); ctx.fill(); ctx.stroke();
+      if (icon) this.iconFit(icon, x, y, r * (ICON_FIT[icon] || 1.5));   // fit inside the bubble whatever the aspect (tall drinks no longer overflow)
+      if (text) { ctx.fillStyle = col || '#3aa856'; ctx.font = `800 ${Math.round(12 * s)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(text, x, y + 4 * s); }
+    }
+    // pulsing green circle on the floor where the current task wants the chef to stand (drawn under everything)
+    drawTargetRing() {
+      const g = this.g, tg = g.taskTarget(); if (!tg) return;
+      const tk = g.task(); if (tk && tk.type === 'unlock') { const pad = g.unlockDef(tk.id2); if (pad && g.padVisible(pad)) return; }   // build pads already have their own dashed spot
+      const ctx = this.ctx, here = Math.hypot(g.player.x - tg.x, g.player.y - tg.y) < 40;
+      const pulse = 0.5 + 0.5 * Math.sin(this.t * 4), r = 24 + pulse * 3;
+      this.isoT();
+      ctx.beginPath(); ctx.arc(tg.x, tg.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = here ? 'rgba(120,230,110,0.45)' : 'rgba(120,230,110,0.25)'; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(tg.x, tg.y, r + 3, 0, Math.PI * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(46,122,60,0.9)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(tg.x, tg.y, r * 0.45 * (0.6 + 0.4 * pulse), 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+    }
+    drawOverlays() {
+      const g = this.g, ctx = this.ctx;
+      for (const k in g.C.LAYOUT.zones) {
+        const z = g.C.LAYOUT.zones[k]; if (g.has(z.unlock)) continue;
+        const q = this.P(z.x + z.w / 2, z.y + z.h / 2); this.tag(q.x, q.y, z.label + ' (locked)');
+      }
+      const tg = g.taskTarget();
+      if (tg) {
+        const q = this.P(tg.x, tg.y), bob = Math.abs(Math.sin(this.t * 4)) * 10;
+        const tk = g.task(), pad = tk && tk.type === 'unlock' ? g.unlockDef(tk.id2) : null;
+        const vipT = g.customers.some(c => c.seat && c.seat.vip && Math.hypot(c.x - tg.x, c.y - tg.y) < 30);   // a VIP's order bubble sits there: lift the arrow above it
+        const top = pad && pad._cardTop !== undefined && g.padVisible(pad) ? pad._cardTop - 6 : q.y - (vipT ? 132 : 84);
+        if (Math.hypot(g.player.x - tg.x, g.player.y - tg.y) > 40) this.bigArrow(q.x, top - bob * 0.7, 0.68);   // hide once the chef is standing on it
+        const ctx2 = this.ctx;
+        // small green pointer on the ground next to the chef, aimed at the target
+        const pp = this.P(g.player.x, g.player.y), dx = q.x - pp.x, dy = (q.y - pp.y) * 2, d = Math.hypot(dx, dy);
+        if (d > 70) {
+          const ang = Math.atan2(dy, dx), rx = pp.x + Math.cos(ang) * 30, ry = pp.y + Math.sin(ang) * 15;   // small pointer hugging the chef's feet
+          ctx2.save(); ctx2.translate(rx, ry); ctx2.scale(1, 0.55); ctx2.rotate(ang);
+          ctx2.beginPath(); ctx2.moveTo(8, 0); ctx2.lineTo(-5, -6.5); ctx2.lineTo(-5, 6.5); ctx2.closePath();
+          ctx2.lineJoin = 'round'; ctx2.lineWidth = 3.5; ctx2.strokeStyle = '#2e7a3c'; ctx2.stroke(); ctx2.fillStyle = '#6fdc6a'; ctx2.fill(); ctx2.restore();
+        }
+        this.targetOnScreen = this.onScreen(tg.x, tg.y); this.lastTarget = tg;
+      } else this.lastTarget = null;
+    }
+    onScreen(x, y) { const p = this.w2s(x, y); return p.x > 0 && p.y > 0 && p.x < this.cv.width && p.y < this.cv.height; }
+    drawFx() {
+      const ctx = this.ctx;
+      for (const f of this.g.fx) {
+        const q = this.P(f.x, f.y), rise = (1.1 - f.life) * 40;
+        ctx.globalAlpha = Math.min(1, f.life * 2); ctx.font = `900 20px ${FONT}`; ctx.textAlign = 'center';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(70,30,10,0.9)'; ctx.strokeText(f.t, q.x, q.y - 60 - rise); ctx.fillStyle = f.col || '#fff'; ctx.fillText(f.t, q.x, q.y - 60 - rise);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  CST.Renderer = Renderer; CST.PROP_W = PW;
+})(typeof window !== 'undefined' ? window : globalThis);

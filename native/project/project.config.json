@@ -1,0 +1,11 @@
+{
+  "appid": "7698572193437190152",
+  "projectname": "meow-sushi-conveyor",
+  "compileType": "game",
+  "description": "Meow Sushi Conveyor – cozy cat sushi tycoon",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": true
+  }
+}
