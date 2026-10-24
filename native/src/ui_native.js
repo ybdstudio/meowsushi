@@ -347,7 +347,7 @@
     }
     complete() {
       const g = this.g; CST.Audio.play('task');
-      this.popup({ title: 'Grand Opening!', hdr: 'hdr_mega', items: [{ t: 'cap', text: 'Your sushi restaurant is the talk of the town.' },
+      this.popup({ title: 'Grand Opening!', hdr: 'hdr_mega', items: [{ t: 'cap', text: 'Your hotpot restaurant is the talk of the town.' },
         { t: 'note', text: `Customers served: ${g.stat('paid')} · Stars: ${g.S.stars} · Play time: ${Math.round(g.stat('playTime') / 60)} min` },
         { t: 'btn', label: 'Keep playing', style: 'green', fn: () => this.closePopup() }] });
     }

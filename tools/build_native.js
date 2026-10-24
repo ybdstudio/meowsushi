@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /* Build the TikTok Mini Games native package from the shared web source.
    usage: node tools/build_native.js [outDir=dist] [--appid ID] [--rewarded AD_ID] [--interstitial AD_ID] [--zip]
-   out:   <outDir>/meow-sushi/  (upload this)   <outDir>/emulator/index.html  (desktop test, not uploaded) */
+   out:   <outDir>/meow-hotpot/  (upload this)   <outDir>/emulator/index.html  (desktop test, not uploaded) */
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const R = path.join(__dirname, '..'), argv = process.argv.slice(2);
 const opt = k => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : null; };
 const outDir = path.resolve(argv[0] && !argv[0].startsWith('--') ? argv[0] : path.join(R, 'dist'));
 const rd = p => fs.readFileSync(path.join(R, p), 'utf8');
-const PKG = path.join(outDir, 'meow-sushi');
+const PKG = path.join(outDir, 'meow-hotpot');
 const SHARED = ['config', 'nav', 'conveyor', 'game', 'bot', 'assets', 'render', 'audio', 'ads', 'minis'].map(n => 'js/' + n + '.js');
 const NATIVE = ['ui_native', 'minis_native', 'hs_native', 'main_native'].map(n => 'native/src/' + n + '.js');
 
-// ---- HS SDK config (native/hs-config.json + defaults from native/meow-sushi.hs-dashboard.json)
+// ---- HS SDK config (native/hs-config.json + defaults from native/meow-hotpot.hs-dashboard.json)
 const HS_FILE = fs.existsSync(path.join(R, 'native/hs-config.json')) ? 'native/hs-config.json' : (console.warn('! native/hs-config.json missing: using placeholders from native/hs-config.example.json (ads/cloud off)'), 'native/hs-config.example.json');
-const HS = JSON.parse(rd(HS_FILE)), DASH = JSON.parse(rd('native/meow-sushi.hs-dashboard.json'));
+const HS = JSON.parse(rd(HS_FILE)), DASH = JSON.parse(rd('native/meow-hotpot.hs-dashboard.json'));
 if (opt('hs-key')) HS.sdkKey = opt('hs-key'); if (opt('hs-game')) HS.gameId = opt('hs-game');
 const hsConfig = () => 'window.CST.HS_CONFIG = ' + JSON.stringify({ gameId: HS.gameId, sdkKey: HS.sdkKey, places: HS.places,
   defaults: { rewards: DASH.iaa_config.rewards, items: DASH.iaa_config.items } }) + ';\n';
@@ -43,7 +43,7 @@ for (const f of Object.values(uiFiles)) { const b = path.basename(f), src = [pat
   if (!src) throw new Error('missing UI art ' + b); fs.copyFileSync(src, path.join(PKG, f)); }
 for (const f of fs.readdirSync(path.join(R, 'assets'))) if (f.endsWith('.webp')) fs.copyFileSync(path.join(R, 'assets', f), path.join(PKG, 'res/assets', f));
 for (const f of ['hs-game.js', 'hs-tiktok-sdk.min.js']) fs.copyFileSync(path.join(R, 'native/hs-sdk', f), path.join(PKG, f));
-fs.copyFileSync(path.join(R, 'native/meow-sushi.hs-dashboard.json'), path.join(outDir, 'meow-sushi.hs-dashboard.json'));   // next to the package (hs-check), not uploaded
+fs.copyFileSync(path.join(R, 'native/meow-hotpot.hs-dashboard.json'), path.join(outDir, 'meow-hotpot.hs-dashboard.json'));   // next to the package (hs-check), not uploaded
 fs.mkdirSync(path.join(outDir, 'emulator')); fs.copyFileSync(path.join(R, 'native/emulator.html'), path.join(outDir, 'emulator/index.html'));
 
 // ---- size check (TikTok: main package 4 MB, total 30 MB)
@@ -52,4 +52,4 @@ const tot = du(PKG), sub = du(path.join(PKG, 'res')), MB = b => (b / 1048576).to
 console.log(`built ${PKG}\n  main ${MB(tot - sub)} MB / 4   total ${MB(tot)} MB / 30   appid=${cfg.appid}`);
 if (tot - sub > 4 * 1048576 || tot > 30 * 1048576) { console.error('SIZE LIMIT EXCEEDED'); process.exit(1); }
 if (cfg.appid.startsWith('YOUR_')) console.log('  note: placeholder App ID still in place');
-if (argv.includes('--zip')) cp.execSync(`cd "${outDir}" && rm -f ../meow-sushi-tiktok-native.zip && zip -qr ../meow-sushi-tiktok-native.zip meow-sushi emulator meow-sushi.hs-dashboard.json`, { stdio: 'inherit' });
+if (argv.includes('--zip')) cp.execSync(`cd "${outDir}" && rm -f ../meow-hotpot-tiktok-native.zip && zip -qr ../meow-hotpot-tiktok-native.zip meow-hotpot emulator meow-hotpot.hs-dashboard.json`, { stdio: 'inherit' });

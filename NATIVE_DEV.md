@@ -11,13 +11,13 @@ native/src/minis_native.js   canvas popups for Home screen / Revisit / Share / F
 native/src/main_native.js    boot: loading screen -> subpackage 'res' -> game loop + touch joystick
 native/project/              game.json, project.config.json, nav/upgrade PNG icons, res/game.js stub
 native/emulator.html         desktop tt.* emulator (not uploaded)
-tools/build_native.js        builds dist/meow-sushi (upload) + dist/emulator
+tools/build_native.js        builds dist/meow-hotpot (upload) + dist/emulator
 tools/native_test.js         headless test of the native build (16 checks)
 ```
 
 ## Everyday loop
 ```
-node tools/build_native.js                       # -> dist/meow-sushi, size check vs 4 MB / 30 MB
+node tools/build_native.js                       # -> dist/meow-hotpot, size check vs 4 MB / 30 MB
 python3 -m http.server 8000 -d dist              # play: http://localhost:8000/emulator/index.html?fakeads=1
 node tools/native_test.js                        # native checks (Playwright)
 python3 -m http.server 8765 & node tests/browser_test.js http://localhost:8765/   # web: 14 checks
@@ -28,7 +28,7 @@ In the console: `APP.setAutoplay(true); APP.speed = 8` (bot plays), `__game` = g
 ## Release build
 ```
 node tools/build_native.js --appid <APP_ID> --rewarded <REWARDED_ID> --interstitial <INTER_ID> --zip
-cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, ttmg login, Node >= 20
+cd dist/meow-hotpot && ttmg dev                   # needs: npm i -g @ttmg/cli, ttmg login, Node >= 20
 ```
 
 ## Changes vs the first native package
@@ -48,7 +48,7 @@ cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, tt
 
 ## Ads: HS TikTok SDK (hs-game.js 3.0.0 + hs-tiktok-sdk 1.0.7)
 - Files: `native/hs-sdk/` (copied next to game.js in the package, do not edit), `native/hs-config.json` (gameId, sdkKey,
-  slot -> dashboard label), `native/meow-sushi.hs-dashboard.json` (placements + reward defaults; the build injects the
+  slot -> dashboard label), `native/meow-hotpot.hs-dashboard.json` (placements + reward defaults; the build injects the
   defaults into game.js and copies the file next to the package for hs-check). Bridge: `native/src/hs_native.js`.
 - Slot -> place: R1 "Double Task Bonus" · R2 "Buying Pad" · R3 "Meow Rush" · R4 "VIP tip" · R5 "Coin Purchase" ·
   R6 "Grand Opening" · every interstitial (I1-I6) "Inter1". Labels are matched exactly (case and spaces).
@@ -56,7 +56,7 @@ cd dist/meow-sushi && ttmg dev                   # needs: npm i -g @ttmg/cli, tt
 - Rewards: each rewarded place gives one `ad_effect` item; onGive runs that placement's effect (sized to the economy).
   `coins` / `stars` (category currency) are fixed extras ops can add on the dashboard without a build.
 - HSGame logs in (the game no longer calls tt.login). Share / home screen / revisit still use the TikTok API directly.
-- Check: `node tools/build_native.js && node tools/hs/hs-check.mjs dist/meow-sushi` (0 fail; the "capitals" warnings are
+- Check: `node tools/build_native.js && node tools/hs/hs-check.mjs dist/meow-hotpot` (0 fail; the "capitals" warnings are
   expected because the dashboard labels have capitals; "calls TikTok directly" = share / missions).
 - Emulator: `?fakeads=1&hsfake=1` = fake TikTok ads + fake HS backend serving the dashboard JSON.
 

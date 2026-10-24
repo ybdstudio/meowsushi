@@ -2,6 +2,7 @@
 /* Native-build test: runs dist/ (built by tools/build_native.js) in the tt.* emulator, headless.
    usage: node tools/native_test.js [outDir] [--secs 160]     (needs playwright; NODE_PATH=$(npm root -g) works) */
 const { chromium } = require(process.env.PW || 'playwright');
+const AD = label => (JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '../native/meow-hotpot.hs-dashboard.json'), 'utf8')).iaa_config.placements.find(p => p.label === label).ads[0].id);   // ad ids from the dashboard file
 const fs = require('fs'), path = require('path'), http = require('http');
 const argv = process.argv.slice(2), OUT = argv[0] && !argv[0].startsWith('--') ? argv[0] : path.join(__dirname, '../tests/out_native');
 const SECS0 = 0; const SECS = argv.includes('--secs') ? +argv[argv.indexOf('--secs') + 1] : 160; fs.mkdirSync(OUT, { recursive: true });
@@ -57,9 +58,9 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
   const c1 = await pg.evaluate(() => { CST.Ads.t = 999; window.__adUnits = []; CST.Minis.popCoins(); return __game.S.coins; }); await pg.waitForTimeout(300); await shot('04_coins');
   await tapHit(() => { const h = APP.ui.hits; return h[h.length - 1]; }); await pg.waitForTimeout(900);
   const co = await pg.evaluate(() => ({ unit: (window.__adUnits || [])[0], coins: __game.S.coins, pop: !!APP.ui.pop, paused: APP.paused }));
-  rec('Free Coins (+ button) plays "Coin Purchase" via HS and grants coins', co.unit === 'ad7698666142394484737' && co.coins > c1 && !co.paused, JSON.stringify(co));
+  rec('Free Coins (+ button) plays "Coin Purchase" via HS and grants coins', co.unit === AD('Coin Purchase') && co.coins > c1 && !co.paused, JSON.stringify(co));
   // every placement: right ad unit, effect applied exactly once
-  const units = { R1_task_x2: 'ad7698648532580665345', R2_pad: 'ad7698648584857667590', R3_rush: 'ad7698648496550774785', R4_vip_tip: 'ad7698646392449107969', R5_coins: 'ad7698666142394484737', R6_rush: 'ad7698648584857683974' };
+  const units = { R1_task_x2: AD('Double Task Bonus'), R2_pad: AD('Buying Pad'), R3_rush: AD('Meow Rush'), R4_vip_tip: AD('VIP tip'), R5_coins: AD('Coin Purchase'), R6_rush: AD('Grand Opening') };
   for (const [slot, unit] of Object.entries(units)) {
     const r = await pg.evaluate(async slot => {
       const A = CST.Ads; A.t += 1000; window.__adUnits = []; let n = 0; const can = A.canReward(slot, 0);
@@ -75,7 +76,7 @@ const res = []; const rec = (name, ok, detail) => { res.push({ name, ok, detail 
     const why = A.interBlocked(); const ok = A.tryInter('I6_idle');
     await new Promise(r => setTimeout(r, (C.interDelay + 1) * 1000)); return { why, ok, unit: window.__adUnits[0], count: A.interCount, paused: APP.paused };
   });
-  rec('Interstitial plays "Inter1" via HS', it.ok && it.unit === 'ad7698650602527574068' && it.count >= 1 && !it.paused, JSON.stringify(it));
+  rec('Interstitial plays "Inter1" via HS', it.ok && it.unit === AD('Inter1') && it.count >= 1 && !it.paused, JSON.stringify(it));
   // closed early -> no reward
   const sk = await pg.evaluate(async () => {
     const A = CST.Ads; A.t += 1000; let n = 0; const real = tt.createRewardedVideoAd;

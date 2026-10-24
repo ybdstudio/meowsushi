@@ -1,8 +1,8 @@
 {
-  "appid": "7698572193437190152",
-  "projectname": "meow-sushi-conveyor",
+  "appid": "YOUR_TIKTOK_APP_ID",
+  "projectname": "meow-hotpot-conveyor",
   "compileType": "game",
-  "description": "Meow Sushi Conveyor – cozy cat sushi tycoon",
+  "description": "Meow Hotpot Conveyor – cozy cat hot pot tycoon",
   "setting": {
     "es6": true,
     "minified": true,
