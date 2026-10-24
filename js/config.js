@@ -16,10 +16,10 @@
 
     // ---------------- recipes ----------------
     RECIPES: {
-      salmon:  { name: 'Sliced Beef', icon: 'f_salmon',  plate: 'c_plate_blue',   price: 6,  prep: 2.6, ing: 'salmon',  belt: true },
-      tuna:    { name: 'Shrimp & Fish Balls',   icon: 'f_tuna',    plate: 'c_plate_pink',   price: 9,  prep: 3.0, ing: 'tuna',    belt: true },
-      maki:    { name: 'Veggies & Mushrooms',     icon: 'f_maki',    plate: 'c_plate_green',  price: 14, prep: 3.4, ing: 'veg',     belt: true },
-      premium: { name: 'Wagyu Platter', icon: 'f_premium', plate: 'c_plate_yellow', price: 50, prep: 4.5, ing: 'ikura',   belt: false },
+      salmon:  { name: 'Sliced Beef', icon: 'f_salmon',  plate: 'c_plate_pink',   ownPlate: true, price: 6,  prep: 2.6, ing: 'salmon',  belt: true },
+      tuna:    { name: 'Shrimp & Fish Balls',   icon: 'f_tuna',    plate: 'c_plate_blue',   ownPlate: true, price: 9,  prep: 3.0, ing: 'tuna',    belt: true },
+      maki:    { name: 'Veggies & Mushrooms',     icon: 'f_maki',    plate: 'c_plate_green',  ownPlate: true, price: 14, prep: 3.4, ing: 'veg',     belt: true },
+      premium: { name: 'Wagyu Platter', icon: 'f_premium', plate: 'c_plate_yellow', ownPlate: true, price: 50, prep: 4.5, ing: 'ikura',   belt: false },
       drink:   { name: 'Kumquat Tea',  icon: 'dr_matcha', plate: null,             price: 12, prep: 2.0, ing: null,      belt: false },
       dessert: { name: 'Three-Color Che', icon: 'd_mochi',   plate: null,             price: 16, prep: 2.8, ing: null,      belt: false }
     },

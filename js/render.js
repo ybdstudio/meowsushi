@@ -30,7 +30,7 @@
     wood:   ['#dba26a', '#cf935b'],
     stone:  ['#d9d6d2', '#cac5bf'],
     rug:    ['#c8454f', '#b93c47'],
-    tatami: ['#dcd394', '#cfc583']
+    tatami: ['#d65a46', '#c64c3b']   // hotpot hall: warm red carpet (was tatami straw)
   };
 
   class Renderer {
@@ -102,7 +102,7 @@
         ctx.fillStyle = b;
         for (let y = z.y, r = 0; y < z.y + z.h; y += 22, r++) { ctx.fillRect(z.x, y + 20, z.w, 2); for (let x = z.x + (r % 2) * 50; x < z.x + z.w; x += 100) ctx.fillRect(x, y, 2, 22); }
       } else if (z.floor === 'tatami') {
-        ctx.strokeStyle = '#6d8b3a'; ctx.lineWidth = 4;
+        ctx.strokeStyle = '#e8b14a'; ctx.lineWidth = 4;   // gold carpet seams
         for (let x = z.x; x < z.x + z.w; x += 90) for (let y = z.y; y < z.y + z.h; y += 45) ctx.strokeRect(x + 2, y + 2, 86, 41);
       } else if (z.floor === 'rug') {
         // VIP rug (vector, after the rug sprite's design so it stays sharp at any size): red field, gold double border, corner frets
@@ -204,6 +204,7 @@
     roundRect(x, y, w, h, r) { const c = this.ctx; c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
     plateAt(recipe, x, y, w = 26) {
       const R = this.g.C.RECIPES[recipe]; const ctx = this.ctx;
+      if (R.ownPlate) { A().prop(ctx, R.icon, x, y + w * 0.3, w); return; }   // hotpot art: the dish sprite carries its own coloured plate
       if (R.plate) A().prop(ctx, R.plate, x, y + w * 0.28, w);
       A().prop(ctx, R.icon, x, y + (R.plate ? 2 : w * 0.3), w * (R.plate ? 0.78 : 0.9));
     }
@@ -350,9 +351,9 @@
         const W = STATION2[s.recipe], by = p.y + (84 + 50) * this.K / 4 + 4, DW = W * 567 / 520, k = DW / 567;
         A().prop(ctx, key + fi, p.x + 6, by, DW);
         if (worker) A().prop(ctx, 'chefst_' + s.recipe + '_' + (Math.floor(this.t * 3.2) % 4), p.x + 6, by - 2, W);
-        // finished sushi sit on the lower shelf (sprite px: shelf runs from (170,282) to (380,248) on a 567x367 canvas)
+        // finished plates sit on the lower shelf (hotpot counter art: shelf floor runs from (150,272) to (370,244) on the 567x367 frame)
         const x0 = p.x + 6 - DW / 2, y0 = by - 367 * k;
-        s.output.forEach((r, i) => { const cx = 172 + i * 40, cy = 284 - (cx - 170) * 34 / 210; this.plateAt(r, x0 + cx * k, y0 + cy * k - 4, 13); });
+        s.output.forEach((r, i) => { const cx = 155 + i * 36, cy = 272 - (cx - 150) * 28 / 220; this.plateAt(r, x0 + cx * k, y0 + cy * k - 4, 13); });
       } else if (STATION4[s.recipe]) {
         // cucumber & nori / ikura counters: 0 empty · 1 ingredients ready (working) · 2 rolls placed (finished plates waiting) · 3 completed flash
         if (s._made !== s.made) { if (s._made !== undefined) s._flashT = 0.5; s._made = s.made; }
@@ -454,6 +455,7 @@
         A().prop(ctx, 'dine_one_empty', p.x + DINE.one.dx, p.y + DINE.one.dy, DINE.one.w);   // empty table rebuilt from the single-guest sheet: same furniture in all three states
         solo('L');
       }
+      if (pair || this.oneGuest(t) || this.soloGuest(t, 'L') || this.soloGuest(t, 'R')) A().prop(ctx, 'hp_pot', p.x + 2, p.y - 12, 24);   // hotpot: shared pot in the middle of an occupied table
     }
     // screen point on the bar counter top in front of a belt stool (counter strip = belt.cy + R + 15 … +39)
     counterPt(seat, dx) { const b = this.g.conv.belts[seat.belt] || Object.values(this.g.conv.belts)[0]; const q = this.P(seat.x + 14 + dx, b.cy + b.R + 16 + CT.w * 0.55); q.y -= CT.up; return q; }
@@ -514,7 +516,8 @@
       const dir = seated && a.seat ? (a.seat.vip ? 'front' : a.seat.face) : a.dir;
       const onBench = a.onBench && a.state === CST.CUST_STATE.QUEUE;   // game clears onBench as soon as the guest leaves the stool spot
       const atCounter = (seated && a.seat && a.seat.belt && a.kind === 'reg') || onBench;
-      if (atCounter && a.seat && a.seat.belt && (a.plate || lg === 'eat')) { const pp = this.counterPt(a.seat, -10); this.plateAt(a.plate ? a.plate.recipe : 'salmon', pp.x, pp.y - 4, 24); }
+      if (atCounter && a.seat && a.seat.belt && seated) { const pt = this.counterPt(a.seat, 4); A().prop(ctx, 'hp_pot', pt.x, pt.y + 2, 22); }   // hotpot: every seated guest has a mini pot on the bar
+      if (atCounter && a.seat && a.seat.belt && (a.plate || lg === 'eat')) { const pp = this.counterPt(a.seat, -14); this.plateAt(a.plate ? a.plate.recipe : 'salmon', pp.x, pp.y - 4, 22); }
       const onStool = atCounter && COUNTER_EATERS[a.char];   // counter stools and the two waiting stools: seated sprite with its own stool
       if (seated && a.seat && a.seat.vip && VIPF.cat[a.char]) { q = { x: q.x + VIPF.cat[a.char][0], y: q.y + VIPF.cat[a.char][1] }; }
       const fr = CST.Anim.frame(a.char, onBench && !onStool ? 'bench_sit' : atCounter ? (lg === 'eat' ? 'counter_eat' : 'counter_sit') : lg, onBench ? 'back_right' : dir, a.animT);
