@@ -19,6 +19,13 @@
       document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => { CST.Audio.unlock(); CST.Audio.play('pop'); this.open(b.dataset.panel); }));
       $('sheetClose').addEventListener('click', () => this.close());
       // AUTO: the bot plays; while it plays the speed button cycles x1 -> x2 -> x3 (back to x1 when AUTO goes off)
+      // created here (not in index.html) so every build's HTML (web platforms, emulator) gets it
+      if (!$('autoBtn')) {
+        const row = document.querySelector('#hud-top .hud-row.sub') || document.getElementById('hud-top');
+        const box = document.createElement('div'); box.className = 'auto-ctl';
+        box.innerHTML = '<button id="autoBtn" class="autob" aria-pressed="false">AUTO</button><button id="spdBtn" class="autob spd hidden" aria-label="Game speed">x1</button>';
+        if (row) row.appendChild(box);
+      }
       const syncAuto = () => {
         const on = !!this.app.autoplay; $('autoBtn').classList.toggle('on', on); $('autoBtn').setAttribute('aria-pressed', on);
         $('spdBtn').classList.toggle('hidden', !on); $('spdBtn').textContent = 'x' + this.app.speed;
