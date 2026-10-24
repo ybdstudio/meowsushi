@@ -124,41 +124,61 @@
       // walls are drawn as vectors so they stay sharp at any zoom / device pixel ratio
       const wall = (dirx, len) => {   // u runs along the wall (world units), v is screen height
         ctx.setTransform(z * K * dirx, z * K / 2, 0, z, ox, oy);
-        ctx.fillStyle = '#f7e9cf'; ctx.fillRect(0, -H, len, H);                       // plaster
+        ctx.fillStyle = '#f6e3c6'; ctx.fillRect(0, -H, len, H);                       // warm plaster
         const seg = 64, top = -H + 12, bot = -46;
+        const gold = '#e2a83a', goldD = '#a8701c', red = '#b8282f', redD = '#7e1a1f';
+        const paw = (cx, cy, r, col) => {            // cat-paw emblem (no text)
+          ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy + r * 0.25, r * 0.5, r * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+          for (const [dx, dy] of [[-0.55, -0.35], [-0.2, -0.65], [0.2, -0.65], [0.55, -0.35]]) { ctx.beginPath(); ctx.arc(cx + dx * r, cy + dy * r, r * 0.2, 0, Math.PI * 2); ctx.fill(); }
+        };
+        const lantern = (cx, cy, r) => {
+          ctx.strokeStyle = '#5a1f16'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, cy - r * 1.1); ctx.stroke();
+          const lg = ctx.createLinearGradient(cx - r, 0, cx + r, 0); lg.addColorStop(0, '#c92a2a'); lg.addColorStop(0.45, '#ff5a3c'); lg.addColorStop(1, '#a51d22');
+          ctx.fillStyle = lg; ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 1.15, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = 'rgba(120,20,20,.55)'; ctx.lineWidth = 1; for (const k of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.ellipse(cx, cy, r * Math.abs(k) || 0.5, r * 1.15, 0, 0, Math.PI * 2); ctx.stroke(); }
+          ctx.fillStyle = gold; ctx.fillRect(cx - r * 0.55, cy - r * 1.3, r * 1.1, r * 0.3); ctx.fillRect(cx - r * 0.55, cy + r * 1.05, r * 1.1, r * 0.3);
+          ctx.strokeStyle = gold; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx, cy + r * 1.35); ctx.lineTo(cx, cy + r * 2.1); ctx.stroke();
+          paw(cx, cy + r * 0.05, r * 0.42, 'rgba(255,224,150,.9)');
+        };
         for (let u = 0, i = 0; u < len - 8; u += seg, i++) {
           const w = Math.min(seg, len - u), x = u + 7, pw = w - 14, ph = bot - top;
           const kind = (i + (dirx > 0 ? 1 : 0)) % 3;
-          if (kind === 0) {                                                             // shoji screen
-            ctx.fillStyle = '#fffaf0'; ctx.fillRect(x, top, pw, ph);
-            ctx.strokeStyle = '#b5834f'; ctx.lineWidth = 1.6;
-            for (let gx = 1; gx < 4; gx++) { ctx.beginPath(); ctx.moveTo(x + pw * gx / 4, top); ctx.lineTo(x + pw * gx / 4, bot); ctx.stroke(); }
-            for (let gy = 1; gy < 5; gy++) { ctx.beginPath(); ctx.moveTo(x, top + ph * gy / 5); ctx.lineTo(x + pw, top + ph * gy / 5); ctx.stroke(); }
-            ctx.lineWidth = 3; ctx.strokeRect(x, top, pw, ph);
-          } else if (kind === 1) {                                                      // cherry-blossom mural
-            const gr = ctx.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, '#ffd9e3'); gr.addColorStop(1, '#f7b7c8');
+          if (kind === 0) {                                                             // Chinese lattice window, warm glow
+            const gr = ctx.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, '#fff1c9'); gr.addColorStop(1, '#ffc46e');
             ctx.fillStyle = gr; ctx.fillRect(x, top, pw, ph);
-            ctx.strokeStyle = '#7a4a2c'; ctx.lineWidth = 2.2; ctx.beginPath();
-            ctx.moveTo(x + 4, bot - 8); ctx.quadraticCurveTo(x + pw * 0.45, top + ph * 0.55, x + pw - 6, top + 12); ctx.moveTo(x + pw * 0.4, top + ph * 0.62); ctx.lineTo(x + pw * 0.25, top + ph * 0.3); ctx.stroke();
-            ctx.fillStyle = '#ff8fb0';
-            for (let k = 0; k < 9; k++) { const px = x + 6 + ((k * 37) % Math.max(10, pw - 12)), py = top + 8 + ((k * 23) % Math.max(10, ph * 0.7)); ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill(); }
-            ctx.strokeStyle = '#b5834f'; ctx.lineWidth = 3; ctx.strokeRect(x, top, pw, ph);
-          } else {                                                                      // red noren curtain
-            ctx.fillStyle = '#fffaf0'; ctx.fillRect(x, top, pw, ph);
-            ctx.fillStyle = '#d63d4c'; const nh = ph * 0.62, n = 3, sw = pw / n;
-            for (let s = 0; s < n; s++) ctx.fillRect(x + s * sw + 1, top, sw - 2, nh);
-            ctx.strokeStyle = '#fff3e6'; ctx.lineWidth = 2.2;                              // simple wave crest pattern
-            for (let s = 0; s < n; s++) { const cx = x + s * sw + sw / 2, cyy = top + nh * 0.5; ctx.beginPath(); ctx.arc(cx, cyy, sw * 0.28, Math.PI, 0); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cyy + 6, sw * 0.28, Math.PI, 0); ctx.stroke(); }
-            ctx.fillStyle = '#7a4a2c'; ctx.fillRect(x - 2, top - 3, pw + 4, 4);
+            const ix = x + pw * 0.2, iy = top + ph * 0.2, iw = pw * 0.6, ih = ph * 0.6;     // 回 fret: inner frame tied to the outer one
+            ctx.strokeStyle = gold; ctx.lineWidth = 2.4; ctx.strokeRect(x + 4, top + 4, pw - 8, ph - 8); ctx.strokeRect(ix, iy, iw, ih);
+            ctx.beginPath();
+            ctx.moveTo(x + pw / 2, top + 4); ctx.lineTo(x + pw / 2, iy); ctx.moveTo(x + pw / 2, iy + ih); ctx.lineTo(x + pw / 2, bot - 4);
+            ctx.moveTo(x + 4, top + ph / 2); ctx.lineTo(ix, top + ph / 2); ctx.moveTo(ix + iw, top + ph / 2); ctx.lineTo(x + pw - 4, top + ph / 2);
+            ctx.moveTo(ix, iy + ih * 0.35); ctx.lineTo(ix + iw, iy + ih * 0.35); ctx.moveTo(ix, iy + ih * 0.65); ctx.lineTo(ix + iw, iy + ih * 0.65); ctx.stroke();
+            ctx.strokeStyle = red; ctx.lineWidth = 4; ctx.strokeRect(x, top, pw, ph);
+          } else if (kind === 1) {                                                      // red lacquer panel, gold paw medallion
+            const gr = ctx.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, '#c9333a'); gr.addColorStop(1, '#9c2028');
+            ctx.fillStyle = gr; ctx.fillRect(x, top, pw, ph);
+            const cx = x + pw / 2, cy = top + ph * 0.48, r = Math.min(pw, ph) * 0.3;
+            ctx.fillStyle = gold; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = goldD; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2); ctx.stroke();
+            paw(cx, cy, r * 0.62, '#b8282f');
+            ctx.strokeStyle = gold; ctx.lineWidth = 2;
+            for (const [cx2, cy2, sx, sy] of [[x + 4, top + 4, 1, 1], [x + pw - 4, top + 4, -1, 1], [x + 4, bot - 4, 1, -1], [x + pw - 4, bot - 4, -1, -1]]) {
+              ctx.beginPath(); ctx.moveTo(cx2, cy2 + sy * 9); ctx.lineTo(cx2, cy2); ctx.lineTo(cx2 + sx * 9, cy2); ctx.moveTo(cx2 + sx * 4, cy2 + sy * 9); ctx.lineTo(cx2 + sx * 4, cy2 + sy * 4); ctx.lineTo(cx2 + sx * 9, cy2 + sy * 4); ctx.stroke(); }
+            ctx.strokeStyle = redD; ctx.lineWidth = 3; ctx.strokeRect(x, top, pw, ph);
+          } else {                                                                      // pair of red lanterns on cream
+            ctx.fillStyle = '#fff4dc'; ctx.fillRect(x, top, pw, ph);
+            const r = Math.min(pw * 0.17, ph * 0.13);
+            lantern(x + pw * 0.3, top + ph * 0.38, r); lantern(x + pw * 0.7, top + ph * 0.5, r);
+            ctx.fillStyle = '#5a1f16'; ctx.fillRect(x - 2, top - 3, pw + 4, 4);
           }
-          ctx.fillStyle = '#8a5530'; ctx.fillRect(u, -H, 6, H);                       // wooden post
-          ctx.fillStyle = '#a86b3c'; ctx.fillRect(u + 1, -H, 2, H);
+          ctx.fillStyle = '#6e2a1e'; ctx.fillRect(u, -H, 6, H);                       // lacquered post
+          ctx.fillStyle = '#8e3a28'; ctx.fillRect(u + 1, -H, 2, H);
         }
-        ctx.fillStyle = '#b07440'; ctx.fillRect(0, -42, len, 28);                      // wainscot
-        ctx.fillStyle = '#9a6233'; for (let u = 0; u < len; u += 16) ctx.fillRect(u, -42, 1.5, 28);
-        ctx.fillStyle = '#7a4a2c'; ctx.fillRect(0, -14, len, 14);
-        ctx.fillStyle = '#e8728f'; ctx.fillRect(0, -H, len, 6);                        // pink frieze
-        ctx.fillStyle = '#5e3620'; ctx.fillRect(0, -H - 8, len, 10);
+        ctx.fillStyle = '#7a2a22'; ctx.fillRect(0, -42, len, 28);                      // red-brown wainscot
+        ctx.fillStyle = '#682219'; for (let u = 0; u < len; u += 16) ctx.fillRect(u, -42, 1.5, 28);
+        ctx.fillStyle = gold; ctx.fillRect(0, -43, len, 2.5);                          // gold rail
+        ctx.fillStyle = '#4a1a12'; ctx.fillRect(0, -14, len, 14);
+        ctx.fillStyle = gold; ctx.fillRect(0, -H, len, 6);                             // gold frieze
+        ctx.fillStyle = '#5a1f16'; ctx.fillRect(0, -H - 8, len, 10);
       };
       // walls only span the built part of the restaurant
       const Z = Object.values(C.LAYOUT.zones).filter(zn => this.g.has(zn.unlock));
