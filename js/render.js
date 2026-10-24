@@ -13,14 +13,16 @@
   const COUNTER_EATERS = { cust_orange: 1, cust_gray: 1 };   // have the 'sit & eat at the conveyor' sheet (cat + own stool, facing the belt)
   const DINE = { w: 85.33, px: -0.7, py: 24.3, solo: { L: [-3.1, 9.6], R: [-3, 8] }, one: { w: 95.7, dx: -2.4, dy: 23.6 } };   // dining table sprite placement (screen px); pair sprite aligned on the right chair, solo cats on their own chair   // dining table sprite placement (screen px, tuned in-game)
   const STOOL = { w: 27, dx: 0, dy: 12 };   // empty bar stool (same design as the stool in the counter-eat sprites)
-  const PADCARD = { w: 128, h: 54, icon: 26 };   // build-spot price card: one size for all
-  const ICON_FIT = { c_fx_drop: 1.25 };    // icons whose art fills its frame edge-to-edge get drawn smaller inside bubbles
+  const PADCARD = { w: 128, h: 54, icon: 26, k: 0.74 };   // build-spot price card: one size for all
+  const ICON_FIT = { c_fx_drop: 1.25 };
+  const ICON_SCALE = { c_stack_blue: 0.72 };   // tall/fat icons that look bigger than the rest on the build cards    // icons whose art fills its frame edge-to-edge get drawn smaller inside bubbles
   const VIPF = { sw: 58, sx: 0, sy: 12, tw: 30, tx: 30, ty: 16, top: 15, cat: { vip1: [4, -9], vip2: [3, -3] } };   // VIP sofa / side table placement (screen px)
   const TOP = { L: [-16, -15], R: [0, -21] };   // dining table top, plate spot per chair side (screen px from the table point)
   const STATION5 = { drink: { key: 'st5_drink', w: 96, dx: 4, dy: 6 }, dessert: { key: 'st5_dessert', w: 96, dx: 4, dy: 6 } };   // open-shelf counters: finished drinks/desserts wait on the lower shelf
   const STATION4 = { maki: { key: 'st4_maki_', w: 96, dx: 4, dy: 6 }, premium: { key: 'st4_ikura_', w: 96, dx: 4, dy: 6 } };
   const CT = { w: 32, up: 10 };   // belt bar counter: depth (world) and how far its top sits above the floor (px)
-  const STATION2 = { salmon: 132, tuna: 132 };   // new prep-counter sprite width (world px) for these recipes
+  const STATION2 = { salmon: 132, tuna: 132 };
+  const SHELF = { salmon: { x0: 175, dx: 40, y0: 280, slope: 0.12 }, tuna: { x0: 165, dx: 50, y0: 290, slope: 0.09 } };   // lower-shelf floor of each prep counter (567x367 frame px)   // new prep-counter sprite width (world px) for these recipes
   const PW = { st_salmon: 104, st_tuna: 104, st_rice: 88, st_maki: 104, st_premium: 104, st_dessert: 86, st_drink: 86, st_storage: 62, st_sink: 56,
     c_box_salmon: 44, c_box_fish: 44, c_box_veg: 44, c_box_rice: 44, cashier: 100, mgr_desk: 70, armchair: 70, armchair2: 70,
     lantern_r: 24, lantern_w: 24, lantern_p: 24, banner: 34, plant1: 40, plant2: 42, bamboo: 34, chalkboard: 38, maneki: 30, sakura_tree: 130, koi: 76,
@@ -295,6 +297,7 @@
         let fs = 13; ctx.font = `900 ${fs}px ${FONT}`; while (fs > 10 && ctx.measureText(u.name).width > w - 30) { fs -= 0.5; ctx.font = `900 ${fs}px ${FONT}`; }
         ctx.font = `900 22px ${FONT}`; const pw = ctx.measureText(txt).width + 30;
         ctx.save();
+        const tipY = y0 + h + 10; ctx.translate(q.x, tipY); ctx.scale(PADCARD.k, PADCARD.k); ctx.translate(-q.x, -tipY);   // smaller card, same pointer tip
         if (Math.hypot(g.player.x - u.pad.x, g.player.y - u.pad.y) < 70) ctx.globalAlpha = 0.35;          // fade so it never hides the chef standing under it
         ctx.fillStyle = '#4a2614'; this.roundRect(x0, y0 + 4, w, h, 14); ctx.fill();                       // drop edge
         ctx.beginPath(); ctx.moveTo(q.x - 9, y0 + h + 2); ctx.lineTo(q.x, y0 + h + 14); ctx.lineTo(q.x + 9, y0 + h + 2); ctx.fill();
@@ -309,12 +312,12 @@
         const ik = u.icon.startsWith('staff_') ? null : u.icon;
         if (ik) this.iconFit(ik, x0 + w - 6, y0 + 4, PADCARD.icon); else this.drawCharIcon(u.icon, x0 + w - 2, y0 + 16);   // same icon box on every card
         ctx.restore();
-        u._cardTop = y0;                                                          // the task arrow sits on top of this card
+        u._cardTop = tipY - (h + 10) * PADCARD.k;                                                          // the task arrow sits on top of this card
         // only the current task gets the big arrow, so there is always exactly one guide on screen
       }
     }
     // draw a prop icon scaled to fit a box x box square centred on (cx, cy), whatever its aspect ratio
-    iconFit(key, cx, cy, box) { const a = A().propAspect(key), w = a > 1 ? box / a : box; A().propCentered(this.ctx, key, cx, cy, w); }
+    iconFit(key, cx, cy, box) { box *= ICON_SCALE[key] || 1; const a = A().propAspect(key), w = a > 1 ? box / a : box; A().propCentered(this.ctx, key, cx, cy, w); }
     // big green guide arrow (Cat Pizza style), tip at (x, y)
     bigArrow(x, y, s = 1) {
       const c = this.ctx; c.save(); c.translate(x, y); c.scale(s, s);
@@ -398,7 +401,8 @@
         if (worker) A().prop(ctx, 'chefst_' + s.recipe + '_' + (Math.floor(this.t * 3.2) % 4), p.x + 6, by - 2, W);
         // finished plates sit on the lower shelf (hotpot counter art: shelf floor runs from (150,272) to (370,244) on the 567x367 frame)
         const x0 = p.x + 6 - DW / 2, y0 = by - 367 * k;
-        s.output.forEach((r, i) => { const cx = 155 + i * 36, cy = 272 - (cx - 150) * 28 / 220; this.plateAt(r, x0 + cx * k, y0 + cy * k - 4, 13); });
+        const SH = SHELF[s.recipe] || SHELF.salmon;
+        s.output.forEach((r, i) => { const cx = SH.x0 + i * SH.dx, cy = SH.y0 - (cx - SH.x0) * SH.slope; this.plateAt(r, x0 + cx * k, y0 + cy * k - 4, 16); });
       } else if (STATION4[s.recipe]) {
         // cucumber & nori / ikura counters: 0 empty · 1 ingredients ready (working) · 2 rolls placed (finished plates waiting) · 3 completed flash
         if (s._made !== s.made) { if (s._made !== undefined) s._flashT = 0.5; s._made = s.made; }
@@ -500,7 +504,7 @@
         A().prop(ctx, 'dine_one_empty', p.x + DINE.one.dx, p.y + DINE.one.dy, DINE.one.w);   // empty table rebuilt from the single-guest sheet: same furniture in all three states
         solo('L');
       }
-      if (!pair && (this.oneGuest(t) || this.soloGuest(t, 'L') || this.soloGuest(t, 'R'))) A().prop(ctx, 'hp_pot', p.x + 2, p.y - 12, 24);   // the pair art has its own shared platter   // hotpot: shared pot in the middle of an occupied table
+      if (!pair && (this.oneGuest(t) || this.soloGuest(t, 'L') || this.soloGuest(t, 'R'))) A().prop(ctx, 'hp_pot', p.x + 4, p.y - 9, 16);   // the pair art has its own shared platter   // hotpot: shared pot in the middle of an occupied table
     }
     // screen point on the bar counter top in front of a belt stool (counter strip = belt.cy + R + 15 … +39)
     counterPt(seat, dx) { const b = this.g.conv.belts[seat.belt] || Object.values(this.g.conv.belts)[0]; const q = this.P(seat.x + 14 + dx, b.cy + b.R + 16 + CT.w * 0.55); q.y -= CT.up; return q; }
@@ -561,7 +565,7 @@
       const dir = seated && a.seat ? (a.seat.vip ? 'front' : a.seat.face) : a.dir;
       const onBench = a.onBench && a.state === CST.CUST_STATE.QUEUE;   // game clears onBench as soon as the guest leaves the stool spot
       const atCounter = (seated && a.seat && a.seat.belt && a.kind === 'reg') || onBench;
-      if (atCounter && a.seat && a.seat.belt && seated) { const pt = this.counterPt(a.seat, 4); A().prop(ctx, 'hp_pot', pt.x, pt.y + 2, 22); }   // hotpot: every seated guest has a mini pot on the bar
+      if (atCounter && a.seat && a.seat.belt && seated && !(a.seat.dirty > 0)) { const pt = this.counterPt(a.seat, 6); A().prop(ctx, 'hp_pot', pt.x, pt.y + 2, 17); }   // hotpot: every seated guest has a mini pot on the bar
       if (atCounter && a.seat && a.seat.belt && (a.plate || lg === 'eat')) { const pp = this.counterPt(a.seat, -14); this.plateAt(a.plate ? a.plate.recipe : 'salmon', pp.x, pp.y - 4, 22); }
       const onStool = atCounter && COUNTER_EATERS[a.char];   // counter stools and the two waiting stools: seated sprite with its own stool
       if (seated && a.seat && a.seat.vip && VIPF.cat[a.char]) { q = { x: q.x + VIPF.cat[a.char][0], y: q.y + VIPF.cat[a.char][1] }; }

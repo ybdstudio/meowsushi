@@ -159,7 +159,7 @@
       ],
       finalDecor: [
         { p: 'sakura_tree', x: 800, y: 470 }, { p: 'koi', x: 790, y: 330 }, { p: 'gate', x: 100, y: 690 },
-        { p: 'lantern_w', x: 740, y: 560 }, { p: 'sakura_pot', x: 410, y: 630 }, { p: 'bonsai', x: 700, y: 690 },
+        { p: 'sakura_pot', x: 410, y: 630 }, { p: 'bonsai', x: 700, y: 690 },
         { p: 'stall', x: 330, y: 700 }, { p: 'lantern_p', x: 20, y: 690 }
       ]
     },
